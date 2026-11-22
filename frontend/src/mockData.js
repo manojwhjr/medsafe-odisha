@@ -1,7 +1,7 @@
 export const mockPatients = [
   {
     id: 'p1',
-    name: 'Ramesh Chandra Nayak',
+    name: 'Patient Case #8841',
     age: 68,
     gender: 'Male',
     location: 'Cuttack, Odisha',
@@ -45,7 +45,7 @@ export const mockPatients = [
   },
   {
     id: 'p2',
-    name: 'Minati Sahoo',
+    name: 'Patient Case #3910',
     age: 74,
     gender: 'Female',
     location: 'Puri, Odisha',
@@ -80,7 +80,7 @@ export const mockPatients = [
   },
   {
     id: 'p3',
-    name: 'Bikram Keshari Das',
+    name: 'Patient Case #5120',
     age: 61,
     gender: 'Male',
     location: 'Berhampur, Ganjam, Odisha',

@@ -1,30 +1,55 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { mockPatients, niramayaFormulary } from './mockData'
+import MedicalGridBackground from './MedicalGridBackground'
+import DashboardBackground from './DashboardBackground'
+import './App.css'
+
+function AnimatedCounter({ end, duration = 1200, suffix = '' }) {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    let start = 0
+    const step = Math.max(1, Math.floor(end / (duration / 20)))
+    const timer = setInterval(() => {
+      start += step
+      if (start >= end) {
+        setCount(end)
+        clearInterval(timer)
+      } else {
+        setCount(start)
+      }
+    }, 20)
+    return () => clearInterval(timer)
+  }, [end, duration])
+
+  return <span>{count.toLocaleString()}{suffix}</span>
+}
 
 export default function App() {
+  const [currentView, setCurrentView] = useState('home') // 'home' | 'analysis' | 'about'
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState('p1')
-  const [activeTab, setActiveTab] = useState('reconciliation')
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState('reconciliation')
   const [searchFormulary, setSearchFormulary] = useState('')
-  
-  // Custom medications state mapped by patient ID
+  const [auditNotification, setAuditNotification] = useState(null)
+
+  // Medication state per patient
   const [patientsData, setPatientsData] = useState(() => {
     const initial = {}
-    mockPatients.forEach(p => {
+    mockPatients.forEach((p) => {
       initial[p.id] = { ...p, medications: [...p.medications] }
     })
     return initial
   })
 
-  // New drug input form state
+  // Quick add drug form
   const [newDrugName, setNewDrugName] = useState('')
   const [newDrugDose, setNewDrugDose] = useState('')
   const [newDrugFreq, setNewDrugFreq] = useState('Once daily')
-  const [newDrugCategory, setNewDrugCategory] = useState('General')
-  const [auditRunCount, setAuditRunCount] = useState(0)
+  const [newDrugCategory, setNewDrugCategory] = useState('Cardiovascular')
 
   const currentPatient = patientsData[selectedPatientId] || mockPatients[0]
+  const medCount = currentPatient.medications.length
 
-  // Add medication handler
   const handleAddMedication = (e) => {
     e.preventDefault()
     if (!newDrugName.trim()) return
@@ -32,480 +57,1285 @@ export default function App() {
     const newMed = {
       id: `custom-${Date.now()}`,
       name: newDrugName.trim(),
-      dose: newDrugDose.trim() || 'As directed',
+      dose: newDrugDose.trim() || 'Standard Dose',
       freq: newDrugFreq,
       category: newDrugCategory,
       niramayaStock: 'In Stock (PHC/CHC)',
-      riskLevel: 'low'
+      riskLevel: 'low',
     }
 
-    setPatientsData(prev => ({
+    setPatientsData((prev) => ({
       ...prev,
       [selectedPatientId]: {
         ...prev[selectedPatientId],
-        medications: [newMed, ...prev[selectedPatientId].medications]
-      }
+        medications: [newMed, ...prev[selectedPatientId].medications],
+      },
     }))
 
     setNewDrugName('')
     setNewDrugDose('')
+    showToast(`Added ${newMed.name} to patient regimen`)
   }
 
-  // Remove medication handler
-  const handleRemoveMedication = (medId) => {
-    setPatientsData(prev => ({
+  const handleRemoveMedication = (medId, medName) => {
+    setPatientsData((prev) => ({
       ...prev,
       [selectedPatientId]: {
         ...prev[selectedPatientId],
-        medications: prev[selectedPatientId].medications.filter(m => m.id !== medId)
-      }
+        medications: prev[selectedPatientId].medications.filter((m) => m.id !== medId),
+      },
     }))
+    showToast(`Deprescribed / Removed ${medName}`)
   }
 
-  // Calculate dynamic polypharmacy status
-  const medCount = currentPatient.medications.length
-  const polypharmacyStatus = useMemo(() => {
-    if (medCount >= 8) return { label: 'Hyper-Polypharmacy (≥8)', color: 'text-rose-400', bg: 'bg-rose-500/10 border-rose-500/30' }
-    if (medCount >= 5) return { label: 'Significant Polypharmacy (≥5)', color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30' }
-    if (medCount >= 3) return { label: 'Moderate Polypharmacy', color: 'text-yellow-400', bg: 'bg-yellow-500/10 border-yellow-500/30' }
-    return { label: 'Low Risk (<3)', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30' }
+  const showToast = (msg) => {
+    setAuditNotification(msg)
+    setTimeout(() => {
+      setAuditNotification(null)
+    }, 3500)
+  }
+
+  const polyStatus = useMemo(() => {
+    if (medCount >= 8) {
+      return {
+        label: 'Hyper-Polypharmacy (≥8 Drugs)',
+        badge: 'High Critical Risk',
+        textColor: 'text-rose-600',
+        bgColor: 'bg-rose-50 border-rose-200',
+        dotColor: 'bg-rose-500',
+      }
+    }
+    if (medCount >= 5) {
+      return {
+        label: 'Polypharmacy (≥5 Drugs)',
+        badge: 'Elevated Risk',
+        textColor: 'text-amber-600',
+        bgColor: 'bg-amber-50 border-amber-200',
+        dotColor: 'bg-amber-500',
+      }
+    }
+    if (medCount >= 3) {
+      return {
+        label: 'Moderate Regimen (3-4 Drugs)',
+        badge: 'Moderate Monitoring',
+        textColor: 'text-blue-600',
+        bgColor: 'bg-blue-50 border-blue-200',
+        dotColor: 'bg-blue-500',
+      }
+    }
+    return {
+      label: 'Low Regimen (<3 Drugs)',
+      badge: 'Standard Risk',
+      textColor: 'text-teal-600',
+      bgColor: 'bg-teal-50 border-teal-200',
+      dotColor: 'bg-teal-500',
+    }
   }, [medCount])
 
-  // Filter formulary items
   const filteredFormulary = useMemo(() => {
     if (!searchFormulary.trim()) return niramayaFormulary
-    const query = searchFormulary.toLowerCase()
-    return niramayaFormulary.filter(item => 
-      item.name.toLowerCase().includes(query) ||
-      item.category.toLowerCase().includes(query) ||
-      item.code.toLowerCase().includes(query)
+    const q = searchFormulary.toLowerCase()
+    return niramayaFormulary.filter(
+      (item) =>
+        item.name.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.code.toLowerCase().includes(q)
     )
   }, [searchFormulary])
 
+  const scrollToSection = (id) => {
+    setMobileMenuOpen(false)
+    if (currentView !== 'home') {
+      setCurrentView('home')
+      setTimeout(() => {
+        const el = document.getElementById(id)
+        if (el) el.scrollIntoView({ behavior: 'smooth' })
+      }, 100)
+    } else {
+      const el = document.getElementById(id)
+      if (el) el.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans antialiased selection:bg-emerald-500 selection:text-white">
-      {/* Top Navbar */}
-      <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center font-extrabold text-white shadow-lg shadow-emerald-500/20 text-lg">
-              PS
-            </div>
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xl font-bold tracking-tight text-white">PolySafe AI</span>
-                <span className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-semibold">
-                  Odisha Edition
-                </span>
+    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-teal-500 selection:text-white">
+      {/* Toast Notification */}
+      {auditNotification && (
+        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-700 flex items-center space-x-3 text-sm animate-bounce">
+          <span className="w-2.5 h-2.5 rounded-full bg-teal-400"></span>
+          <span>{auditNotification}</span>
+        </div>
+      )}
+
+      {/* Navigation Bar */}
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-20">
+            {/* Logo */}
+            <div
+              className="flex items-center space-x-3 cursor-pointer group"
+              onClick={() => {
+                setCurrentView('home')
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+            >
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-blue-700 via-blue-600 to-teal-500 flex items-center justify-center text-white font-black text-xl shadow-md shadow-blue-500/20 group-hover:scale-105 transition-transform duration-200">
+                +
               </div>
-              <p className="text-[11px] text-slate-400 hidden sm:block">
-                ଔଷଧ ସୁରକ୍ଷା ଓ ବହୁ-ଔଷଧ ବିପଦ ଚିହ୍ନଟ ପ୍ରଣାଳୀ • Medication Safety Platform
-              </p>
+              <div>
+                <div className="flex items-center space-x-1.5">
+                  <span className="text-2xl font-black tracking-tight text-slate-900">
+                    PolySafe<span className="text-teal-600 font-extrabold">AI</span>
+                  </span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
+                    Odisha
+                  </span>
+                </div>
+                <p className="text-[11px] font-medium text-slate-500 hidden sm:block">
+                  AI-Powered Medication Safety & Polypharmacy Defense
+                </p>
+              </div>
+            </div>
+
+            {/* Desktop Navigation Links */}
+            <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
+              <button
+                onClick={() => {
+                  setCurrentView('home')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
+                  currentView === 'home'
+                    ? 'text-blue-700 bg-blue-50/80'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100/70'
+                }`}
+              >
+                Home
+              </button>
+              <button
+                onClick={() => {
+                  setCurrentView('analysis')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
+                  currentView === 'analysis'
+                    ? 'text-blue-700 bg-blue-50/80'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100/70'
+                }`}
+              >
+                Medication Analysis
+              </button>
+              <button
+                onClick={() => scrollToSection('how-it-works')}
+                className="px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 transition"
+              >
+                How It Works
+              </button>
+              <button
+                onClick={() => scrollToSection('about')}
+                className="px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 transition"
+              >
+                About
+              </button>
+            </nav>
+
+            {/* Desktop CTA Button */}
+            <div className="hidden md:flex items-center space-x-3">
+              <button
+                onClick={() => {
+                  setCurrentView('analysis')
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-blue-700 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/30 active:scale-98 transition duration-150"
+              >
+                Get Started
+                <svg className="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Mobile Hamburger Toggle */}
+            <div className="md:hidden flex items-center">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 focus:outline-none"
+                aria-label="Toggle Navigation Menu"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {mobileMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  ) : (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                  )}
+                </svg>
+              </button>
             </div>
           </div>
+        </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="hidden md:flex items-center space-x-1.5 text-xs bg-slate-800/90 border border-slate-700/80 rounded-lg px-3 py-1.5 text-slate-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span>Client-Side Mock Engine Active</span>
-            </div>
+        {/* Mobile Dropdown Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-2 shadow-xl animate-fadeIn">
             <button
               onClick={() => {
-                setAuditRunCount(c => c + 1)
-                alert(`Clinical audit generated for ${currentPatient.name}! Prescription report verified against Odisha Niramaya Essential Drug List.`)
+                setCurrentView('home')
+                setMobileMenuOpen(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-3.5 py-1.5 rounded-lg text-xs transition shadow-sm flex items-center space-x-1.5"
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
             >
-              <span>Audit Prescription</span>
-              {auditRunCount > 0 && <span className="bg-emerald-800 text-[10px] px-1.5 py-0.2 rounded-full">✓</span>}
+              Home
             </button>
+            <button
+              onClick={() => {
+                setCurrentView('analysis')
+                setMobileMenuOpen(false)
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+            >
+              Medication Analysis
+            </button>
+            <button
+              onClick={() => scrollToSection('how-it-works')}
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+            >
+              How It Works
+            </button>
+            <button
+              onClick={() => scrollToSection('about')}
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+            >
+              About
+            </button>
+            <div className="pt-2">
+              <button
+                onClick={() => {
+                  setCurrentView('analysis')
+                  setMobileMenuOpen(false)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                className="w-full py-3 rounded-xl font-bold text-sm text-center text-white bg-blue-600 hover:bg-blue-700 shadow-md"
+              >
+                Get Started
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </header>
 
-      {/* Main Body */}
-      <main className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6">
-        
-        {/* Patient Selection Bar */}
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              Select Patient Case:
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {mockPatients.map(patient => (
-                <button
-                  key={patient.id}
-                  onClick={() => setSelectedPatientId(patient.id)}
-                  className={`px-3.5 py-2 rounded-xl text-xs font-medium transition ${
-                    selectedPatientId === patient.id
-                      ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md shadow-emerald-500/20 font-semibold'
-                      : 'bg-slate-800/60 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/50'
-                  }`}
-                >
-                  {patient.name} ({patient.age}y)
-                </button>
-              ))}
-            </div>
-          </div>
+      {/* Main Content Area */}
+      {currentView === 'home' ? (
+        <div className="flex-1 flex flex-col bg-[#EFF6FF]">
+          {/* Hero Section */}
+          <section className="relative overflow-hidden bg-gradient-to-b from-[#DBEAFE] via-[#E8F2FE] to-[#EFF6FF] pt-12 pb-20 md:pt-20 md:pb-28">
+            {/* Animated Futuristic Medical Grid Background */}
+            <MedicalGridBackground />
 
-          <div className="text-xs text-slate-400 flex items-center gap-2">
-            <span>UHID:</span>
-            <span className="font-mono bg-slate-800/80 px-2 py-0.5 rounded text-slate-200 border border-slate-700/60">
-              {currentPatient.uhid}
-            </span>
-            <span className="text-slate-500">•</span>
-            <span>{currentPatient.location}</span>
-          </div>
-        </div>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+                
+                {/* Left Hero Text Column */}
+                <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+                  <div className="inline-flex items-center space-x-2 bg-blue-50/90 border border-blue-200/90 px-3.5 py-1.5 rounded-full text-xs font-bold text-blue-700 shadow-2xs animate-hero-fade-up">
+                    <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                    <span>Next-Gen Healthcare AI for Clinical Safety</span>
+                  </div>
 
-        {/* Patient Clinical Profile & Risk Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Card 1: Polypharmacy Risk */}
-          <div className={`rounded-2xl p-5 border ${polypharmacyStatus.bg} flex flex-col justify-between`}>
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Active Drugs</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-900/60 text-slate-200">
-                Count: {medCount}
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className={`text-xl font-bold ${polypharmacyStatus.color}`}>
-                {polypharmacyStatus.label}
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Risk threshold evaluated under WHO & Beers criteria
-              </p>
-            </div>
-          </div>
+                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12] animate-hero-fade-up-delay-1">
+                    Smarter Medication <br className="hidden sm:inline" />
+                    <span className="animated-gradient-text font-black">
+                      Safety with AI
+                    </span>
+                  </h1>
 
-          {/* Card 2: Drug Interactions Alert */}
-          <div className="rounded-2xl p-5 border border-slate-800 bg-slate-900/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">AI Clinical Alerts</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                {currentPatient.alerts.length} Flagged
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-xl font-bold text-white flex items-center space-x-2">
-                <span className="text-rose-400">
-                  {currentPatient.alerts.filter(a => a.severity === 'critical').length} Critical
-                </span>
-                <span className="text-slate-500 text-sm">/</span>
-                <span className="text-amber-400 text-base">
-                  {currentPatient.alerts.filter(a => a.severity !== 'critical').length} Warnings
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-1">
-                Includes DDI and renal clearance warnings
-              </p>
-            </div>
-          </div>
+                  <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal animate-hero-fade-up-delay-2">
+                    PolySafe AI protects multimorbid and elderly patients against dangerous drug-drug interactions,
+                    prescribing cascades, and unnecessary polypharmacy. Integrated with the Government of Odisha Niramaya
+                    Essential Formulary and clinical STOPP/START guidelines.
+                  </p>
 
-          {/* Card 3: Odisha Niramaya Scheme Status */}
-          <div className="rounded-2xl p-5 border border-slate-800 bg-slate-900/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Niramaya Scheme</span>
-              <span className="text-xs font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                Free Supply
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-xl font-bold text-emerald-400">86% Formulary Match</div>
-              <p className="text-xs text-slate-400 mt-1">
-                Available at PHC/CHC government dispensaries
-              </p>
-            </div>
-          </div>
+                  {/* Hero Action Buttons */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 animate-hero-fade-up-delay-3">
+                    <button
+                      onClick={() => {
+                        setCurrentView('analysis')
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className="group btn-electric-glow w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-base text-white bg-gradient-to-r from-blue-600 via-blue-700 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-lg shadow-blue-600/30 active:scale-98 transition duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <span>Get Started</span>
+                      <svg className="w-5 h-5 group-hover:translate-x-1.5 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                      </svg>
+                    </button>
 
-          {/* Card 4: Clinical Facility */}
-          <div className="rounded-2xl p-5 border border-slate-800 bg-slate-900/60 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Assigned Facility</span>
-              <span className="text-xs font-mono bg-slate-800 px-1.5 py-0.5 rounded text-slate-300">
-                Odisha Health
-              </span>
-            </div>
-            <div className="mt-3">
-              <div className="text-sm font-semibold text-slate-200 truncate">
-                {currentPatient.healthCenter}
-              </div>
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {currentPatient.diagnoses.slice(0, 2).map((d, i) => (
-                  <span key={i} className="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded">
-                    {d}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+                    <button
+                      onClick={() => scrollToSection('how-it-works')}
+                      className="group w-full sm:w-auto px-7 py-4 rounded-2xl font-semibold text-base text-slate-700 bg-white/90 hover:bg-white border border-slate-300 shadow-xs hover:border-blue-400 hover:text-blue-700 transition duration-200 flex items-center justify-center space-x-1"
+                    >
+                      <span>How It Works</span>
+                      <span className="group-hover:translate-x-1 transition-transform duration-200">↓</span>
+                    </button>
+                  </div>
 
-        {/* Tab Navigation */}
-        <div className="border-b border-slate-800 flex space-x-6">
-          <button
-            onClick={() => setActiveTab('reconciliation')}
-            className={`pb-3 text-sm font-medium transition border-b-2 ${
-              activeTab === 'reconciliation'
-                ? 'border-emerald-500 text-emerald-400 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            📋 Prescription Audit & DDIs ({currentPatient.medications.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('ai-summary')}
-            className={`pb-3 text-sm font-medium transition border-b-2 ${
-              activeTab === 'ai-summary'
-                ? 'border-emerald-500 text-emerald-400 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            🤖 AI Clinical Insights & Deprescribing
-          </button>
-          <button
-            onClick={() => setActiveTab('niramaya')}
-            className={`pb-3 text-sm font-medium transition border-b-2 ${
-              activeTab === 'niramaya'
-                ? 'border-emerald-500 text-emerald-400 font-semibold'
-                : 'border-transparent text-slate-400 hover:text-slate-200'
-            }`}
-          >
-            🏥 Odisha Niramaya Formulary
-          </button>
-        </div>
+                  {/* Trust Metrics with Animated Counting & Verified Labels */}
+                  <div className="pt-6 border-t border-slate-200/80 grid grid-cols-3 gap-4 text-center lg:text-left animate-hero-fade-up-delay-3">
+                    <div>
+                      <div className="text-2xl font-extrabold text-blue-700">
+                        <AnimatedCounter end={10000} suffix="+" />
+                      </div>
+                      <div className="text-xs text-slate-600 font-semibold mt-0.5">DDI Cross-Checks</div>
+                      <div className="text-[10px] text-teal-700 font-medium">Verified Core Rules</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-extrabold text-teal-600">
+                        <AnimatedCounter end={86} suffix="%" />
+                      </div>
+                      <div className="text-xs text-slate-600 font-semibold mt-0.5">Niramaya Formulary</div>
+                      <div className="text-[10px] text-teal-700 font-medium">Formulary Alignment</div>
+                    </div>
+                    <div>
+                      <div className="text-2xl font-extrabold text-slate-800">&lt;200ms</div>
+                      <div className="text-xs text-slate-600 font-semibold mt-0.5">Audit Response</div>
+                      <div className="text-[10px] text-slate-500 font-medium">Demo Target Benchmark</div>
+                    </div>
+                  </div>
+                </div>
 
-        {/* Tab 1: Reconciliation & Interactions */}
-        {activeTab === 'reconciliation' && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Medications Column (Left) */}
-            <div className="lg:col-span-2 space-y-4">
-              {/* Add Drug Card */}
-              <div className="bg-slate-900/80 border border-slate-800/80 rounded-2xl p-5 shadow-sm">
-                <h3 className="text-sm font-bold text-white mb-1">Add Medication to Reconcile</h3>
-                <p className="text-xs text-slate-400 mb-4">
-                  Simulate adding another drug to test real-time polypharmacy interaction flags
-                </p>
-                <form onSubmit={handleAddMedication} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
-                  <input
-                    type="text"
-                    placeholder="Drug name (e.g. Ciprofloxacin)"
-                    value={newDrugName}
-                    onChange={(e) => setNewDrugName(e.target.value)}
-                    className="sm:col-span-2 bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Dose (e.g. 500mg)"
-                    value={newDrugDose}
-                    onChange={(e) => setNewDrugDose(e.target.value)}
-                    className="bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-                  />
-                  <button
-                    type="submit"
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium px-4 py-2 rounded-xl text-xs transition shadow-sm"
-                  >
-                    + Add to Regimen
-                  </button>
-                </form>
-              </div>
+                {/* Right Hero Interactive Card Preview */}
+                <div className="lg:col-span-5 relative floating-hero-card">
+                  {/* Subtle Electric-Blue Ambient Glow behind the medication interaction card */}
+                  <div className="absolute -inset-3 bg-gradient-to-tr from-[#0066FF]/25 via-[#008CFF]/28 to-[#00D4FF]/22 rounded-3xl blur-2xl pointer-events-none -z-10" />
 
-              {/* Medication Cards List */}
-              <div className="space-y-2.5">
-                {currentPatient.medications.map((med) => (
-                  <div
-                    key={med.id}
-                    className="bg-slate-900/50 border border-slate-800 hover:border-slate-700 rounded-xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition"
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className={`w-3 h-3 rounded-full mt-1.5 ${
-                        med.riskLevel === 'high' ? 'bg-rose-500 shadow-sm shadow-rose-500/50' :
-                        med.riskLevel === 'medium' ? 'bg-amber-400' : 'bg-emerald-400'
-                      }`} />
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="font-bold text-sm text-white">{med.name}</span>
-                          <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-800 text-slate-300">
-                            {med.dose}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-400 mt-1 flex flex-wrap items-center gap-2">
-                          <span>{med.freq}</span>
-                          <span className="text-slate-600">•</span>
-                          <span className="text-slate-300 font-medium">{med.category}</span>
-                          <span className="text-slate-600">•</span>
-                          <span className="text-emerald-400 text-[11px] bg-emerald-500/10 px-1.5 py-0.2 rounded">
-                            {med.niramayaStock}
-                          </span>
-                        </div>
+                  <div className="bg-white/95 backdrop-blur-xs rounded-3xl p-6 sm:p-7 shadow-xl shadow-blue-500/10 border border-slate-200 card-glow-pulse relative overflow-hidden">
+                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                      <div className="flex items-center space-x-2.5">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
+                        </span>
+                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                          Live Interaction Monitor
+                        </span>
+                      </div>
+                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                        Critical Hazard Flagged
+                      </span>
+                    </div>
+
+                    {/* Sample Case Summary in Hero */}
+                    <div className="my-5 p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm text-slate-900">Patient Case #8841 (68y)</span>
+                        <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-800 font-bold">
+                          SCB Medical College
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600">
+                        7 active medications • CKD Stage 3 • Hypertension • Osteoarthritis
+                      </p>
+                      <div className="flex items-center justify-between pt-1 border-t border-blue-200/50">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                          Simulated Demonstration Case
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-medium">De-identified Record</span>
                       </div>
                     </div>
 
-                    <button
-                      onClick={() => handleRemoveMedication(med.id)}
-                      className="text-xs text-rose-400 hover:text-rose-300 px-2.5 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 transition self-end sm:self-auto"
-                    >
-                      Deprescribe / Remove
-                    </button>
+                    {/* Detected Hazard Box */}
+                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200/90 space-y-2">
+                      <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs">
+                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                        <span>"Triple Whammy" Acute Renal Alert</span>
+                      </div>
+                      <p className="text-xs text-rose-900/90 leading-relaxed">
+                        Telmisartan (ARB) + Furosemide (Diuretic) + Diclofenac (NSAID) impairs renal hemodynamics, risking acute kidney failure.
+                      </p>
+                      <div className="text-[11px] font-bold text-teal-700 bg-white/80 p-2 rounded-xl border border-teal-200">
+                        💡 AI Action: Discontinue Diclofenac. Substitute with Paracetamol 500mg.
+                      </div>
+                    </div>
+
+                    {/* Demonstration Disclaimer Note */}
+                    <p className="mt-3 text-[10px] text-slate-400 text-center italic">
+                      * Clinical scenarios, dosages, and recommendations are simulated demonstration data for testing.
+                    </p>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 font-medium">Ready to test other patient profiles?</span>
+                      <button
+                        onClick={() => {
+                          setCurrentView('analysis')
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                        className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline flex items-center space-x-1"
+                      >
+                        <span>Launch Full Audit</span>
+                        <span>→</span>
+                      </button>
+                    </div>
                   </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Seamless Blue-to-Light-Blue Gradient Transition Overlay at Bottom of Hero */}
+            <div 
+              className="absolute inset-x-0 bottom-0 h-44 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to bottom, transparent 0%, rgba(239, 246, 255, 0.25) 30%, rgba(239, 246, 255, 0.75) 65%, #EFF6FF 100%)'
+              }}
+            />
+          </section>
+
+          {/* Feature Cards Section */}
+          <section className="relative py-24 overflow-hidden bg-gradient-to-b from-[#EFF6FF] via-[#E1F0FE] to-[#EFF6FF]">
+            {/* Seamless Gradient Blend at Top of Feature Cards Section */}
+            <div 
+              className="absolute inset-x-0 top-0 h-44 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to bottom, #EFF6FF 0%, rgba(239, 246, 255, 0.75) 35%, rgba(239, 246, 255, 0.25) 70%, transparent 100%)'
+              }}
+            />
+
+            {/* Seamless Gradient Blend at Bottom of Feature Cards Section */}
+            <div 
+              className="absolute inset-x-0 bottom-0 h-44 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to bottom, transparent 0%, rgba(239, 246, 255, 0.25) 30%, rgba(239, 246, 255, 0.75) 65%, #EFF6FF 100%)'
+              }}
+            />
+
+            {/* Ambient Electric Glows */}
+            <div className="absolute top-1/4 left-1/4 -translate-x-1/2 w-[550px] h-[450px] bg-gradient-to-tr from-[#0066FF]/20 via-[#008CFF]/22 to-transparent rounded-full blur-3xl pointer-events-none electric-ambient-glow-1" />
+            <div className="absolute top-1/3 right-10 w-[550px] h-[450px] bg-gradient-to-bl from-[#00D4FF]/22 via-[#008CFF]/18 to-transparent rounded-full blur-3xl pointer-events-none electric-ambient-glow-2" />
+            
+            {/* Electric Grid Pattern Overlay with Smooth Top & Bottom Fade */}
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,1) 28%, rgba(0,0,0,1) 72%, rgba(0,0,0,0.3) 88%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,1) 28%, rgba(0,0,0,1) 72%, rgba(0,0,0,0.3) 88%, transparent 100%)'
+              }}
+            >
+              <div className="absolute inset-0 electric-medical-grid opacity-75" />
+              <div className="absolute inset-0 electric-micro-grid opacity-50" />
+            </div>
+
+            {/* Circuit Line with Animated Energy Pulse Crossing Section */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-85" preserveAspectRatio="none" viewBox="0 0 1440 600">
+              <line x1="0" y1="280" x2="1440" y2="280" stroke="#00D4FF" strokeOpacity="0.3" strokeWidth="1.25" strokeDasharray="6 6" />
+              <path d="M 0 280 H 1440" stroke="url(#pulseCyanH)" strokeWidth="2.5" className="electric-beam-h1" />
+              
+              {/* Intersection cross markers */}
+              {[160, 440, 720, 1000, 1280].map((x, i) => (
+                <g key={i} className="electric-cross">
+                  <line x1={x - 5} y1={280} x2={x + 5} y2={280} />
+                  <line x1={x} y1={275} x2={x} y2={285} />
+                  <circle cx={x} cy={280} r="3" fill="#00D4FF" className="electric-node-pulse" />
+                </g>
+              ))}
+            </svg>
+
+            {/* Floating Shimmer Particles */}
+            <div className="absolute top-[25%] left-[10%] w-2 h-2 rounded-full bg-[#00D4FF] shadow-[0_0_8px_#00D4FF] animate-particle-1" />
+            <div className="absolute top-[60%] right-[12%] w-2.5 h-2.5 rounded-full bg-[#008CFF] shadow-[0_0_10px_#008CFF] animate-particle-2" />
+            <div className="absolute top-[80%] left-[25%] w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_6px_#00D4FF] animate-particle-3" />
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+              <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+                <span className="text-xs font-bold tracking-wider uppercase text-teal-700 bg-teal-50/90 border border-teal-200/90 px-3.5 py-1 rounded-full shadow-2xs">
+                  Clinical Capabilities
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                  Comprehensive Precision Medication Defense
+                </h2>
+                <p className="text-slate-600 text-sm sm:text-base">
+                  Designed specifically for multi-doctor prescriptions, chronic elderly patients, and primary health clinics.
+                </p>
+              </div>
+
+              {/* 3 Core Feature Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Feature Card 1: Drug Interaction Checking */}
+                <div className="group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-[#00D4FF] hover:shadow-2xl hover:shadow-[#008CFF]/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#00D4FF] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:shadow-[0_0_20px_#00D4FF] group-hover:scale-110 transition-all duration-300">
+                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900">
+                      Drug Interaction Checking
+                    </h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Instant multi-drug cross-referencing detecting severe, moderate, and synergistic interactions across active therapies,
+                      including anticoagulants, NSAIDs, antihypertensives, and diuretics.
+                    </p>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-slate-200/70 text-xs font-bold text-blue-700 flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
+                    <span>Explore interaction detection</span>
+                    <span>→</span>
+                  </div>
+                </div>
+
+                {/* Feature Card 2: Medication Information & Niramaya Formulary */}
+                <div className="group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-teal-400 hover:shadow-2xl hover:shadow-teal-500/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-teal-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-teal-500/25 group-hover:shadow-[0_0_20px_#14B8A6] group-hover:scale-110 transition-all duration-300">
+                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900">
+                      Medication Information & Formulary
+                    </h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Clear drug indications, standard geriatric doses, and direct alignment with the Government of Odisha Niramaya
+                      Essential Drug List for zero out-of-pocket patient costs at PHC, CHC, and District Hospitals.
+                    </p>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-slate-200/70 text-xs font-bold text-teal-700 flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
+                    <span>Verify Niramaya formulary stock</span>
+                    <span>→</span>
+                  </div>
+                </div>
+
+                {/* Feature Card 3: AI-Powered Clinical Analysis */}
+                <div className="group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-[#00D4FF] hover:shadow-2xl hover:shadow-[#008CFF]/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#00D4FF] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <div className="space-y-4">
+                    <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-700 via-indigo-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:shadow-[0_0_20px_#00D4FF] group-hover:scale-110 transition-all duration-300">
+                      <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900">
+                      AI-Powered Clinical Analysis
+                    </h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Intelligent synthesis grounded in AGS Beers Criteria, STOPP/START geriatric rules, and renal adjustment protocols
+                      to suggest safe deprescribing and effective therapeutic alternatives.
+                    </p>
+                  </div>
+                  <div className="mt-6 pt-4 border-t border-slate-200/70 text-xs font-bold text-blue-700 flex items-center space-x-1 group-hover:translate-x-1 transition-transform">
+                    <span>Inspect AI clinical rules</span>
+                    <span>→</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* How It Works Section */}
+          <section id="how-it-works" className="relative py-24 overflow-hidden bg-gradient-to-b from-[#EFF6FF] via-[#E4F1FE] to-[#EFF6FF] scroll-mt-20">
+            {/* Seamless Gradient Blend at Top of How It Works Section */}
+            <div 
+              className="absolute inset-x-0 top-0 h-44 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to bottom, #EFF6FF 0%, rgba(239, 246, 255, 0.75) 35%, rgba(239, 246, 255, 0.25) 70%, transparent 100%)'
+              }}
+            />
+
+            {/* Seamless Gradient Blend at Bottom of How It Works Section */}
+            <div 
+              className="absolute inset-x-0 bottom-0 h-44 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to bottom, transparent 0%, rgba(239, 246, 255, 0.25) 30%, rgba(239, 246, 255, 0.75) 65%, #EFF6FF 100%)'
+              }}
+            />
+
+            {/* Ambient Electric Glows & Subtle Grid with Smooth Top & Bottom Fade */}
+            <div className="absolute top-1/4 left-1/3 -translate-x-1/2 w-[550px] h-[380px] bg-gradient-to-tr from-[#0066FF]/15 via-[#008CFF]/15 to-transparent rounded-full blur-3xl pointer-events-none electric-ambient-glow-2" />
+            
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,1) 28%, rgba(0,0,0,1) 72%, rgba(0,0,0,0.3) 88%, transparent 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,1) 28%, rgba(0,0,0,1) 72%, rgba(0,0,0,0.3) 88%, transparent 100%)'
+              }}
+            >
+              <div className="absolute inset-0 electric-medical-grid opacity-60" />
+              <div className="absolute inset-0 electric-micro-grid opacity-40" />
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+              <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+                <span className="text-xs font-bold tracking-wider uppercase text-blue-700 bg-blue-50 border border-blue-200 px-3.5 py-1 rounded-full shadow-2xs">
+                  Workflow Architecture
+                </span>
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
+                  How PolySafe AI Works
+                </h2>
+                <p className="text-slate-600 text-sm sm:text-base">
+                  Three simple steps from prescription entry to clinical safety validation.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+                {/* Step 1 */}
+                <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-[#00D4FF] shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-[#008CFF]/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-4xl font-black text-blue-200">01</span>
+                    <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200">
+                      📥
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">1. Prescription Intake</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    Enter or scan existing medications prescribed across various doctors, clinics, or self-administered OTC remedies.
+                  </p>
+                  <div className="pt-2 text-xs font-semibold text-blue-700 bg-blue-50/70 p-2.5 rounded-xl border border-blue-200/60">
+                    Supports handwritten, electronic, or formulary codes.
+                  </div>
+                </div>
+
+                {/* Step 2 */}
+                <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-teal-400 shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-teal-500/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-4xl font-black text-teal-200">02</span>
+                    <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 font-bold flex items-center justify-center text-sm border border-teal-200">
+                      ⚡
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">2. Real-Time AI Safety Scan</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    The engine checks for severe drug-drug interactions, duplicate therapeutic classes, and patient renal/geriatric contraindications.
+                  </p>
+                  <div className="pt-2 text-xs font-semibold text-teal-700 bg-teal-50/70 p-2.5 rounded-xl border border-teal-200/60">
+                    Evaluated under WHO, Beers, and STOPP criteria.
+                  </div>
+                </div>
+
+                {/* Step 3 */}
+                <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-[#00D4FF] shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-[#008CFF]/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-4xl font-black text-blue-200">03</span>
+                    <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200">
+                      🛡️
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-900">3. Actionable Clinical Report</h3>
+                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+                    Receive a clear deprescribing proposal with safer alternative medications available under the Odisha Niramaya Scheme.
+                  </p>
+                  <div className="pt-2 text-xs font-semibold text-blue-700 bg-blue-50/70 p-2.5 rounded-xl border border-blue-200/60">
+                    Ready for doctor review or patient counseling printout.
+                  </div>
+                </div>
+              </div>
+
+              {/* Central CTA Banner */}
+              <div className="mt-14 rounded-3xl bg-gradient-to-r from-blue-700 via-blue-800 to-teal-700 p-8 sm:p-12 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+                <div>
+                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                    Ready to audit a multi-drug prescription?
+                  </h3>
+                  <p className="text-blue-100 text-sm mt-1 max-w-xl">
+                    Try our interactive live analysis demo with pre-loaded patient cases from Cuttack, Puri, and Berhampur.
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    setCurrentView('analysis')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className="shrink-0 px-8 py-3.5 rounded-xl bg-white text-blue-800 font-bold text-sm hover:bg-blue-50 shadow-md active:scale-98 transition"
+                >
+                  Launch Analysis Tool
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* About Section */}
+          <section id="about" className="relative py-24 overflow-hidden bg-gradient-to-b from-[#EFF6FF] via-[#E2F0FE] to-[#DBEAFE] scroll-mt-20">
+            {/* Seamless Gradient Blend at Top of About Section */}
+            <div 
+              className="absolute inset-x-0 top-0 h-44 pointer-events-none z-10"
+              style={{
+                background: 'linear-gradient(to bottom, #EFF6FF 0%, rgba(239, 246, 255, 0.75) 35%, rgba(239, 246, 255, 0.25) 70%, transparent 100%)'
+              }}
+            />
+
+            {/* Ambient Electric Glows & Subtle Grid with Smooth Top Fade */}
+            <div className="absolute top-1/4 right-1/4 w-[550px] h-[400px] bg-gradient-to-bl from-[#00D4FF]/20 via-[#008CFF]/15 to-transparent rounded-full blur-3xl pointer-events-none electric-ambient-glow-1" />
+            
+            <div 
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,1) 28%, rgba(0,0,0,1) 100%)',
+                WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,1) 28%, rgba(0,0,0,1) 100%)'
+              }}
+            >
+              <div className="absolute inset-0 electric-medical-grid opacity-60" />
+              <div className="absolute inset-0 electric-micro-grid opacity-40" />
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                <div className="space-y-5">
+                  <span className="text-xs font-bold tracking-wider uppercase text-teal-600 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full">
+                    About PolySafe AI
+                  </span>
+                  <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+                    Dedicated to Reducing Polypharmacy Risks Across Odisha
+                  </h2>
+                  <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                    In rural and urban healthcare systems alike, patients seeing multiple healthcare providers frequently
+                    accumulate 5 to 10+ concurrent medications. Without centralized reconciliation, accidental drug interactions,
+                    acute renal injury, and adverse falls are leading causes of emergency hospitalization.
+                  </p>
+                  <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                    PolySafe AI bridges this critical gap by empowering frontline doctors, pharmacists, and health workers with
+                    real-time intelligence, seamless Niramaya formulary matching, and automated deprescribing assistance.
+                  </p>
+                  <div className="pt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-700">
+                    <span className="bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg">🏥 Community Health Centres (CHC)</span>
+                    <span className="bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg">🩺 Primary Health Centres (PHC)</span>
+                    <span className="bg-slate-100 border border-slate-200 px-3 py-1 rounded-lg">💊 Free Medicine Supply (Niramaya)</span>
+                  </div>
+                </div>
+
+                <div className="bg-gradient-to-br from-blue-50 via-teal-50/50 to-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+                  <h3 className="text-lg font-bold text-slate-900">System Impact Goals</h3>
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                        ✓
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Prevent Inadvertent Adverse Drug Events (ADEs)</h4>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Eliminate toxic combinations before the prescription reaches the dispensing counter.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                        ✓
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Support Deprescribing in Geriatric Multimorbidity</h4>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Taper unnecessary medications to improve quality of life and compliance.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start space-x-3">
+                      <div className="w-6 h-6 rounded-full bg-teal-600 text-white flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                        ✓
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Maximize Regional Formulary Compliance</h4>
+                        <p className="text-xs text-slate-600 mt-0.5">
+                          Guide physicians toward in-stock state-sponsored medicines to minimize patient financial distress.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : (
+        /* Medication Analysis Section (Interactive Workspace) */
+        <div className="relative flex-1 min-h-[calc(100vh-80px)] overflow-hidden bg-gradient-to-b from-[#F8FBFF] via-[#F1F7FE] to-[#EFF6FF]">
+          {/* Futuristic Electric-Blue Clinical Dashboard Background */}
+          <DashboardBackground />
+
+          <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6">
+          {/* Breadcrumb / Return to Home */}
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => {
+                setCurrentView('home')
+                window.scrollTo({ top: 0, behavior: 'smooth' })
+              }}
+              className="group inline-flex items-center space-x-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-white border border-slate-200 hover:border-blue-300 px-3.5 py-1.5 rounded-xl shadow-2xs hover:shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              <span className="group-hover:-translate-x-0.5 transition-transform duration-200 inline-block">←</span>
+              <span>Back to Homepage</span>
+            </button>
+            <div className="text-xs text-slate-500 font-medium">
+              Interactive Clinical Workspace • <span className="text-teal-700 font-bold">Client-Side Engine</span>
+            </div>
+          </div>
+
+          {/* Patient Selector Strip */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+                Active Clinical Case:
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {mockPatients.map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedPatientId(p.id)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ease-out hover:scale-[1.02] active:scale-98 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                      selectedPatientId === p.id
+                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 border border-blue-500'
+                        : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-transparent shadow-2xs hover:shadow-sm'
+                    }`}
+                  >
+                    {p.name} ({p.age}y)
+                  </button>
                 ))}
               </div>
             </div>
 
-            {/* AI Warnings / DDI Column (Right) */}
-            <div className="space-y-4">
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-                    <span>⚠️ Detected Clinical Hazards</span>
-                  </h3>
-                  <span className="text-xs font-semibold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full">
-                    {currentPatient.alerts.length} Risks
-                  </span>
+            <div className="text-xs text-slate-600 flex items-center space-x-2">
+              <span className="font-semibold">UHID:</span>
+              <span className="font-mono bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-800 font-bold">
+                {currentPatient.uhid}
+              </span>
+              <span>•</span>
+              <span className="text-slate-500">{currentPatient.location}</span>
+            </div>
+          </div>
+
+          {/* Quick Metrics Bar (Summary Cards with 4-6px elevation & electric-blue border glow) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Metric 1 */}
+            <div className={`rounded-2xl p-5 border ${polyStatus.bgColor} shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default`}>
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Medications</span>
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-white text-slate-800 border border-slate-200">
+                  {medCount} Active
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className={`text-xl font-black ${polyStatus.textColor}`}>
+                  {polyStatus.label}
+                </div>
+                <div className="text-xs text-slate-500 mt-1 flex items-center space-x-1.5">
+                  <span className={`w-2 h-2 rounded-full ${polyStatus.dotColor}`}></span>
+                  <span>{polyStatus.badge}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Metric 2 */}
+            <div className="rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Alerts</span>
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                  {currentPatient.alerts.length} Warnings
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-xl font-black text-rose-600">
+                  {currentPatient.alerts.filter((a) => a.severity === 'critical').length} Critical Hazards
+                </div>
+                <div className="text-xs text-slate-500 mt-1">
+                  Nephrotoxicity & bleeding risk flags
+                </div>
+              </div>
+            </div>
+
+            {/* Metric 3 */}
+            <div className="rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Niramaya Formulary</span>
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                  Govt. Scheme
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-xl font-black text-teal-700">86% Free Stock Match</div>
+                <div className="text-xs text-slate-500 mt-1">Zero out-of-pocket patient cost</div>
+              </div>
+            </div>
+
+            {/* Metric 4 */}
+            <div className="rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Hospital Center</span>
+                <span className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
+                  Odisha
+                </span>
+              </div>
+              <div className="mt-3">
+                <div className="text-sm font-bold text-slate-800 truncate">
+                  {currentPatient.healthCenter}
+                </div>
+                <div className="text-xs text-slate-500 mt-1 truncate">
+                  {currentPatient.diagnoses.join(', ')}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Analysis View Tabs */}
+          <div className="border-b border-slate-200 flex space-x-2 sm:space-x-6 overflow-x-auto pb-1">
+            <button
+              onClick={() => setActiveAnalysisTab('reconciliation')}
+              className={`pb-3 text-sm font-bold transition-all duration-200 ease-out border-b-2 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-lg px-2 ${
+                activeAnalysisTab === 'reconciliation'
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-slate-500 hover:text-blue-600'
+              }`}
+            >
+              📋 Prescription & Drug Interactions ({medCount})
+            </button>
+            <button
+              onClick={() => setActiveAnalysisTab('ai-summary')}
+              className={`pb-3 text-sm font-bold transition-all duration-200 ease-out border-b-2 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-lg px-2 ${
+                activeAnalysisTab === 'ai-summary'
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-slate-500 hover:text-blue-600'
+              }`}
+            >
+              🤖 AI Deprescribing Recommendations
+            </button>
+            <button
+              onClick={() => setActiveAnalysisTab('niramaya')}
+              className={`pb-3 text-sm font-bold transition-all duration-200 ease-out border-b-2 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-lg px-2 ${
+                activeAnalysisTab === 'niramaya'
+                  ? 'border-blue-600 text-blue-700'
+                  : 'border-transparent text-slate-500 hover:text-blue-600'
+              }`}
+            >
+              🏥 Niramaya Essential Drug Formulary
+            </button>
+          </div>
+
+          {/* Tab 1: Reconciliation & Interactions */}
+          {activeAnalysisTab === 'reconciliation' && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Left Column: Medications */}
+              <div className="lg:col-span-2 space-y-4">
+                {/* Add Drug Bar */}
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
+                  <h3 className="text-sm font-extrabold text-slate-900 mb-1">Add Drug to Regimen</h3>
+                  <p className="text-xs text-slate-500 mb-4">
+                    Simulate co-prescribing an additional medicine to evaluate real-time interaction risks
+                  </p>
+                  <form onSubmit={handleAddMedication} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
+                    <input
+                      type="text"
+                      placeholder="Drug name (e.g. Ciprofloxacin)"
+                      value={newDrugName}
+                      onChange={(e) => setNewDrugName(e.target.value)}
+                      className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Dose (e.g. 500mg)"
+                      value={newDrugDose}
+                      onChange={(e) => setNewDrugDose(e.target.value)}
+                      className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <button
+                      type="submit"
+                      className="group bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-98 border border-blue-500 hover:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-1"
+                    >
+                      <span className="group-hover:rotate-90 transition-transform duration-200 inline-block text-sm leading-none">+</span>
+                      <span>Add Drug</span>
+                    </button>
+                  </form>
                 </div>
 
-                <div className="space-y-3">
-                  {currentPatient.alerts.map((alert) => (
+                {/* Drug Cards List */}
+                <div className="space-y-2.5">
+                  {currentPatient.medications.map((med) => (
                     <div
-                      key={alert.id}
-                      className={`p-3.5 rounded-xl border text-xs space-y-1.5 ${
-                        alert.severity === 'critical'
-                          ? 'bg-rose-950/20 border-rose-800/60 text-rose-200'
-                          : alert.severity === 'high'
-                          ? 'bg-amber-950/20 border-amber-800/60 text-amber-200'
-                          : 'bg-yellow-950/20 border-yellow-800/60 text-yellow-200'
-                      }`}
+                      key={med.id}
+                      className="bg-white border border-slate-200/90 border-l-4 border-l-transparent hover:border-l-[#0066FF] hover:border-blue-200 hover:bg-[#F3F8FE] rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs hover:shadow-md hover:shadow-blue-500/10 hover:-translate-y-0.5 transition-all duration-300 ease-out"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs uppercase tracking-wide">
-                          {alert.severity} Risk
-                        </span>
+                      <div className="flex items-start space-x-3">
+                        <div
+                          className={`w-3.5 h-3.5 rounded-full mt-1 shrink-0 ${
+                            med.riskLevel === 'high'
+                              ? 'bg-rose-500'
+                              : med.riskLevel === 'medium'
+                              ? 'bg-amber-400'
+                              : 'bg-teal-500'
+                          }`}
+                        />
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-extrabold text-sm text-slate-900">{med.name}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                              {med.dose}
+                            </span>
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                            <span>{med.freq}</span>
+                            <span>•</span>
+                            <span className="text-slate-700 font-medium">{med.category}</span>
+                            <span>•</span>
+                            <span className="text-teal-700 text-[11px] font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                              {med.niramayaStock}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="font-semibold text-white">{alert.title}</div>
-                      <p className="text-slate-300 text-[11px] leading-relaxed">
-                        {alert.description}
-                      </p>
-                      <div className="pt-1 text-[11px] text-emerald-300 font-medium">
-                        💡 Rec: {alert.action}
-                      </div>
+
+                      <button
+                        onClick={() => handleRemoveMedication(med.id, med.name)}
+                        className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-100 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:border-rose-400 hover:shadow-sm hover:shadow-rose-500/20 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 self-end sm:self-auto"
+                      >
+                        Deprescribe
+                      </button>
                     </div>
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-        )}
 
-        {/* Tab 2: AI Clinical Summary & Deprescribing */}
-        {activeTab === 'ai-summary' && (
-          <div className="space-y-6">
-            <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-slate-800 rounded-2xl p-6 sm:p-8">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+              {/* Right Column: Detected Interactions */}
+              <div className="space-y-4">
+                <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+                    <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-1.5">
+                      <span>⚠️ Detected Clinical Hazards</span>
+                    </h3>
+                    <span className="text-xs font-extrabold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                      {currentPatient.alerts.length} Flagged
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    {currentPatient.alerts.map((alert) => (
+                      <div
+                        key={alert.id}
+                        className={`p-4 rounded-2xl border text-xs space-y-1.5 transition-all duration-300 ease-out hover:-translate-y-1 shadow-2xs hover:shadow-md ${
+                          alert.severity === 'critical'
+                            ? 'bg-rose-50/80 border-rose-200 text-rose-900 hover:border-rose-400 hover:shadow-rose-500/15 hover:bg-rose-50'
+                            : alert.severity === 'high'
+                            ? 'bg-amber-50/80 border-amber-200 text-amber-900 hover:border-amber-400 hover:shadow-amber-500/15 hover:bg-amber-50'
+                            : 'bg-blue-50/80 border-blue-200 text-blue-900 hover:border-blue-400 hover:shadow-blue-500/15 hover:bg-blue-50'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-white/80 border border-current">
+                            {alert.severity} Risk
+                          </span>
+                        </div>
+                        <div className="font-bold text-slate-900 text-sm mt-1">{alert.title}</div>
+                        <p className="text-slate-700 text-xs leading-relaxed">{alert.description}</p>
+                        <div className="pt-2 text-xs font-bold text-teal-800 bg-white/90 p-2.5 rounded-xl border border-teal-200/80">
+                          💡 Action: {alert.action}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Tab 2: AI Clinical Synthesis */}
+          {activeAnalysisTab === 'ai-summary' && (
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-teal-50 border border-teal-200 flex items-center justify-center text-teal-700 text-lg font-bold">
                   🤖
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-white">AI Clinical Synthesis & Audit Engine</h3>
-                  <p className="text-xs text-slate-400">Trained on STOPP/START, AGS Beers Criteria & Odisha Essential Drugs</p>
+                  <h3 className="text-base font-bold text-slate-900">AI Clinical Deprescribing Synthesis</h3>
+                  <p className="text-xs text-slate-500">
+                    Calculated using STOPP/START, Beers Criteria & Odisha Formulary Guidelines
+                  </p>
                 </div>
               </div>
 
-              <div className="bg-slate-950/80 border border-slate-800/90 rounded-xl p-4 text-sm text-slate-300 leading-relaxed font-sans mb-6">
+              <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-5 text-sm text-slate-800 leading-relaxed font-medium">
                 {currentPatient.aiSummary}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-                  <div className="text-xs font-bold text-emerald-400 uppercase tracking-wide mb-1">
-                    1. Deprescribing Priority
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Target high-risk duplicate or nephrotoxic medicines first (e.g. NSAIDs in chronic kidney disease patients).
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 hover:-translate-y-1 hover:shadow-md hover:border-blue-300 transition-all duration-300 ease-out">
+                  <span className="text-xs font-bold uppercase text-blue-700">Priority 1</span>
+                  <h4 className="text-sm font-bold text-slate-900">Eliminate Nephrotoxics</h4>
+                  <p className="text-xs text-slate-600">
+                    Deprescribe oral NSAIDs immediately in patients with eGFR &lt; 60 or on concurrent ACEi/ARBs.
                   </p>
                 </div>
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-                  <div className="text-xs font-bold text-cyan-400 uppercase tracking-wide mb-1">
-                    2. Dose Optimization
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Adjust dosage based on age and renal parameters (eGFR / Serum Creatinine) to prevent drug accumulation.
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 hover:-translate-y-1 hover:shadow-md hover:border-teal-300 transition-all duration-300 ease-out">
+                  <span className="text-xs font-bold uppercase text-teal-700">Priority 2</span>
+                  <h4 className="text-sm font-bold text-slate-900">Renal Dose Adjustment</h4>
+                  <p className="text-xs text-slate-600">
+                    Adjust metformin or statin dosages down to avoid drug accumulation and lactic acidosis risks.
                   </p>
                 </div>
-                <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4">
-                  <div className="text-xs font-bold text-teal-400 uppercase tracking-wide mb-1">
-                    3. Niramaya Alignment
-                  </div>
-                  <p className="text-xs text-slate-300">
-                    Substitute costly out-of-pocket commercial brand names with free government formulary medicines.
+
+                <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 hover:-translate-y-1 hover:shadow-md hover:border-blue-300 transition-all duration-300 ease-out">
+                  <span className="text-xs font-bold uppercase text-blue-700">Priority 3</span>
+                  <h4 className="text-sm font-bold text-slate-900">Niramaya Generic Switch</h4>
+                  <p className="text-xs text-slate-600">
+                    Replace branded retail formulations with verified free state supplies available at CHCs.
                   </p>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* Tab 3: Odisha Niramaya Formulary */}
-        {activeTab === 'niramaya' && (
-          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div>
-                <h3 className="text-base font-bold text-white">Odisha Niramaya Essential Drug Formulary</h3>
-                <p className="text-xs text-slate-400">
-                  Government of Odisha free medicine initiative coverage verification
-                </p>
+          {/* Tab 3: Odisha Niramaya Formulary */}
+          {activeAnalysisTab === 'niramaya' && (
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-5">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Odisha Niramaya Essential Drug Formulary</h3>
+                  <p className="text-xs text-slate-500">
+                    Government of Odisha Free Medicine Distribution Coverage
+                  </p>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Filter drug by name or category..."
+                  value={searchFormulary}
+                  onChange={(e) => setSearchFormulary(e.target.value)}
+                  className="bg-slate-50 border border-slate-200 hover:border-blue-300 rounded-xl px-4 py-2 text-xs text-slate-800 placeholder-slate-400 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+                />
               </div>
-              <input
-                type="text"
-                placeholder="Search drug by name, code, or class..."
-                value={searchFormulary}
-                onChange={(e) => setSearchFormulary(e.target.value)}
-                className="bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 w-full sm:w-64 focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-800">
-              <table className="w-full text-left text-xs text-slate-300">
-                <thead className="bg-slate-900 text-slate-400 uppercase text-[10px] tracking-wider border-b border-slate-800">
-                  <tr>
-                    <th className="px-4 py-3">Code</th>
-                    <th className="px-4 py-3">Medicine Name</th>
-                    <th className="px-4 py-3">Therapeutic Class</th>
-                    <th className="px-4 py-3">Dispensing Tier</th>
-                    <th className="px-4 py-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-800/60">
-                  {filteredFormulary.map((item) => (
-                    <tr key={item.code} className="hover:bg-slate-800/30 transition">
-                      <td className="px-4 py-3 font-mono text-slate-400">{item.code}</td>
-                      <td className="px-4 py-3 font-semibold text-white">{item.name}</td>
-                      <td className="px-4 py-3">{item.category}</td>
-                      <td className="px-4 py-3 text-slate-400">{item.tier}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2 py-0.5 rounded text-[11px] font-medium ${
-                          item.status === 'Available'
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3">Formulary Code</th>
+                      <th className="px-4 py-3">Medicine Name</th>
+                      <th className="px-4 py-3">Therapeutic Class</th>
+                      <th className="px-4 py-3">Hospital Tier</th>
+                      <th className="px-4 py-3">Stock Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filteredFormulary.map((item) => (
+                      <tr key={item.code} className="hover:bg-blue-50/50 transition-colors duration-150">
+                        <td className="px-4 py-3 font-mono font-bold text-blue-700">{item.code}</td>
+                        <td className="px-4 py-3 font-bold text-slate-900">{item.name}</td>
+                        <td className="px-4 py-3">{item.category}</td>
+                        <td className="px-4 py-3 text-slate-500">{item.tier}</td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                              item.status === 'Available'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : 'bg-amber-50 text-amber-700 border border-amber-200'
+                            }`}
+                          >
+                            {item.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+          </div>
+        </div>
+      )}
+
+      {/* Professional Healthcare Footer */}
+      <footer className="mt-auto bg-slate-900 text-slate-400 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+            {/* Col 1: About */}
+            <div className="md:col-span-2 space-y-3">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black flex items-center justify-center text-sm">
+                  +
+                </div>
+                <span className="text-xl font-black text-white tracking-tight">
+                  PolySafe<span className="text-teal-400">AI</span>
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+                Intelligent clinical decision support designed to protect patients from adverse drug events,
+                unnecessary polypharmacy, and high out-of-pocket costs across Odisha's health ecosystem.
+              </p>
+              <div className="pt-2 text-xs text-teal-400 font-semibold">
+                Government of Odisha Healthcare Hackathon Initiative
+              </div>
+            </div>
+
+            {/* Col 2: Quick Links */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white">Platform Navigation</h4>
+              <ul className="space-y-2 text-xs">
+                <li>
+                  <button
+                    onClick={() => {
+                      setCurrentView('home')
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    className="hover:text-white transition"
+                  >
+                    Home
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => {
+                      setCurrentView('analysis')
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    className="hover:text-white transition"
+                  >
+                    Medication Analysis
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollToSection('how-it-works')} className="hover:text-white transition">
+                    How It Works
+                  </button>
+                </li>
+                <li>
+                  <button onClick={() => scrollToSection('about')} className="hover:text-white transition">
+                    About the Platform
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Clinical Standards */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-white">Clinical Guidelines</h4>
+              <ul className="space-y-2 text-xs">
+                <li className="flex items-center space-x-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                  <span>AGS Beers Criteria 2023</span>
+                </li>
+                <li className="flex items-center space-x-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                  <span>STOPP/START Version 3</span>
+                </li>
+                <li className="flex items-center space-x-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                  <span>Odisha Niramaya Formulary</span>
+                </li>
+                <li className="flex items-center space-x-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-teal-400"></span>
+                  <span>WHO Medication Safety</span>
+                </li>
+              </ul>
             </div>
           </div>
-        )}
-      </main>
 
-      {/* Footer */}
-      <footer className="border-t border-slate-800/80 py-6 mt-12 bg-slate-950 text-center text-xs text-slate-500">
-        <p>PolySafe AI • AI-Assisted Medication Reconciliation & Polypharmacy Risk Detection for Odisha</p>
-        <p className="mt-1 text-[11px] text-slate-600">
-          Client-Side Mock Engine • Ready for Vercel Deployment • Branch: frontend-polysafe
-        </p>
+          <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
+            <p>© 2026 PolySafe AI • Built for Odisha Healthcare Hackathon • All rights reserved.</p>
+            <p className="text-slate-500 text-[11px]">
+              Disclaimer: Clinical decision support tool for healthcare professionals and research.
+            </p>
+          </div>
+        </div>
       </footer>
     </div>
   )

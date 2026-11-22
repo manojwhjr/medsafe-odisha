@@ -1,1 +1,480 @@
-/* App-level specific styles if needed */
+/* ========================================================
+   PolySafe AI: Electric-Blue Futuristic Healthcare Theme
+   ======================================================== */
+
+/* 1. Electric Blue Perspective Grid at Bottom */
+.perspective-grid-container {
+  perspective: 420px;
+  transform-style: preserve-3d;
+}
+
+.perspective-grid-plane {
+  transform: rotateX(64deg) scale(1.65);
+  transform-origin: 50% 100%;
+  background-size: 40px 40px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 212, 255, 0.42) 1.5px, transparent 1.5px),
+    linear-gradient(to bottom, rgba(0, 140, 255, 0.42) 1.5px, transparent 1.5px);
+  mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.4) 15%, rgba(0, 0, 0, 0.95) 35%, rgba(0, 0, 0, 0.5) 60%, transparent 80%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, rgba(0, 0, 0, 0.4) 15%, rgba(0, 0, 0, 0.95) 35%, rgba(0, 0, 0, 0.5) 60%, transparent 80%);
+  animation: gridPerspectiveScroll 8s linear infinite;
+}
+
+@keyframes gridPerspectiveScroll {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 0 40px;
+  }
+}
+
+/* 2. Top / Wall Background Grid */
+.electric-medical-grid {
+  background-size: 44px 44px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 140, 255, 0.22) 1.25px, transparent 1.25px),
+    linear-gradient(to bottom, rgba(0, 140, 255, 0.22) 1.25px, transparent 1.25px);
+  mask-image: radial-gradient(ellipse 96% 88% at 50% 38%, rgba(0, 0, 0, 1) 45%, rgba(0, 0, 0, 0.65) 75%, transparent 98%);
+  -webkit-mask-image: radial-gradient(ellipse 96% 88% at 50% 38%, rgba(0, 0, 0, 1) 45%, rgba(0, 0, 0, 0.65) 75%, transparent 98%);
+}
+
+.electric-micro-grid {
+  background-size: 11px 11px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 212, 255, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 212, 255, 0.08) 1px, transparent 1px);
+}
+
+/* 3. Volumetric Neon Ambient Glows */
+@keyframes electricAmbientBreathe {
+  0%, 100% {
+    opacity: 0.65;
+    transform: scale(1) translate3d(0, 0, 0);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1.12) translate3d(0, -10px, 0);
+  }
+}
+
+.electric-ambient-glow-1 {
+  animation: electricAmbientBreathe 7s ease-in-out infinite;
+}
+
+.electric-ambient-glow-2 {
+  animation: electricAmbientBreathe 9s ease-in-out infinite 2s;
+}
+
+.electric-ambient-glow-3 {
+  animation: electricAmbientBreathe 11s ease-in-out infinite 4s;
+}
+
+/* 4. Glowing Sweeping Light Swooshes Undulation */
+@keyframes swooshFloatLeft {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-8px) scale(1.03);
+    opacity: 1;
+    filter: drop-shadow(0 0 25px rgba(0, 212, 255, 0.7));
+  }
+}
+
+@keyframes swooshFloatRight {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translateY(-10px) scale(1.04);
+    opacity: 1;
+    filter: drop-shadow(0 0 25px rgba(0, 140, 255, 0.75));
+  }
+}
+
+.animate-swoosh-left {
+  animation: swooshFloatLeft 6.5s ease-in-out infinite;
+}
+
+.animate-swoosh-right {
+  animation: swooshFloatRight 7.5s ease-in-out infinite 1.5s;
+}
+
+/* 5. Horizontal Flowing Light Wave */
+@keyframes waveFlowHoriz {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-wave-flow {
+  display: flex;
+  width: 200%;
+  animation: waveFlowHoriz 18s linear infinite;
+}
+
+/* 6. Star Flare Twinkle */
+@keyframes starFlareTwinkle {
+  0%, 100% {
+    transform: scale(0.85) rotate(0deg);
+    opacity: 0.6;
+    filter: drop-shadow(0 0 6px #00D4FF);
+  }
+  50% {
+    transform: scale(1.35) rotate(45deg);
+    opacity: 1;
+    filter: drop-shadow(0 0 16px #00D4FF) drop-shadow(0 0 24px #FFFFFF);
+  }
+}
+
+.animate-star-flare-1 { animation: starFlareTwinkle 3s ease-in-out infinite; }
+.animate-star-flare-2 { animation: starFlareTwinkle 3.8s ease-in-out infinite 1s; }
+.animate-star-flare-3 { animation: starFlareTwinkle 4.5s ease-in-out infinite 2s; }
+.animate-star-flare-4 { animation: starFlareTwinkle 3.2s ease-in-out infinite 1.5s; }
+
+/* 7. Electric Node Pulsing */
+@keyframes electricNodePulse {
+  0%, 100% {
+    r: 4;
+    opacity: 0.8;
+    filter: drop-shadow(0 0 5px #008CFF);
+  }
+  50% {
+    r: 6.5;
+    opacity: 1;
+    filter: drop-shadow(0 0 12px #00D4FF) drop-shadow(0 0 20px rgba(0, 212, 255, 0.9));
+  }
+}
+
+.electric-node-pulse {
+  animation: electricNodePulse 3s ease-in-out infinite;
+}
+
+.electric-node-pulse-fast {
+  animation: electricNodePulse 2.2s ease-in-out infinite 0.6s;
+}
+
+.electric-node-pulse-slow {
+  animation: electricNodePulse 4s ease-in-out infinite 1.5s;
+}
+
+/* 8. Fast & Dynamic Circuit Pulse Beams */
+@keyframes electricBeamH {
+  0% {
+    stroke-dashoffset: 500;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -500;
+    opacity: 0;
+  }
+}
+
+@keyframes electricBeamV {
+  0% {
+    stroke-dashoffset: 450;
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -450;
+    opacity: 0;
+  }
+}
+
+.electric-beam-h1 {
+  stroke-dasharray: 75 450;
+  animation: electricBeamH 5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.electric-beam-h2 {
+  stroke-dasharray: 85 500;
+  animation: electricBeamH 6.5s cubic-bezier(0.4, 0, 0.2, 1) infinite 1.5s;
+}
+
+.electric-beam-v1 {
+  stroke-dasharray: 65 400;
+  animation: electricBeamV 5.5s cubic-bezier(0.4, 0, 0.2, 1) infinite 0.8s;
+}
+
+.electric-beam-v2 {
+  stroke-dasharray: 75 420;
+  animation: electricBeamV 7s cubic-bezier(0.4, 0, 0.2, 1) infinite 2.5s;
+}
+
+/* 9. Floating Glowing Medical Badges */
+@keyframes floatBadge1 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-5px, -15px, 0) rotate(4deg);
+  }
+}
+
+@keyframes floatBadge2 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(6px, -18px, 0) rotate(-5deg);
+  }
+}
+
+@keyframes floatBadge3 {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  50% {
+    transform: translate3d(-7px, -14px, 0) rotate(3deg);
+  }
+}
+
+.animate-float-badge-1 { animation: floatBadge1 5.5s ease-in-out infinite; }
+.animate-float-badge-2 { animation: floatBadge2 6.5s ease-in-out infinite 0.8s; }
+.animate-float-badge-3 { animation: floatBadge3 6s ease-in-out infinite 1.6s; }
+.animate-float-badge-4 { animation: floatBadge2 7s ease-in-out infinite 2.4s; }
+.animate-float-badge-5 { animation: floatBadge1 6.8s ease-in-out infinite 1.2s; }
+.animate-float-badge-6 { animation: floatBadge3 6.2s ease-in-out infinite 2s; }
+
+/* 10. Glowing Badge Outer Ring Breathing */
+@keyframes ringBreathe {
+  0%, 100% {
+    box-shadow: 0 0 18px rgba(0, 212, 255, 0.5), inset 0 0 10px rgba(0, 212, 255, 0.3);
+    border-color: rgba(0, 212, 255, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(0, 212, 255, 0.85), inset 0 0 16px rgba(0, 212, 255, 0.5);
+    border-color: #00D4FF;
+  }
+}
+
+.glowing-medical-badge {
+  animation: ringBreathe 4s ease-in-out infinite;
+}
+
+/* 11. Hero Headline & Section Animations */
+@keyframes heroFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-hero-fade-up {
+  animation: heroFadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-hero-fade-up-delay-1 {
+  animation: heroFadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+  opacity: 0;
+}
+
+.animate-hero-fade-up-delay-2 {
+  animation: heroFadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.38s forwards;
+  opacity: 0;
+}
+
+.animate-hero-fade-up-delay-3 {
+  animation: heroFadeUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.55s forwards;
+  opacity: 0;
+}
+
+/* 12. Animated Gradient Text */
+@keyframes textGradientFlow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animated-gradient-text {
+  background: linear-gradient(90deg, #0066FF, #008CFF, #00D4FF, #14B8A6, #008CFF, #0066FF);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textGradientFlow 5s ease infinite;
+}
+
+/* 13. Floating Interaction Card & Glow Pulse */
+@keyframes cardFloatMotion {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.floating-hero-card {
+  animation: cardFloatMotion 4.8s ease-in-out infinite;
+}
+
+@keyframes cardBorderGlow {
+  0%, 100% {
+    border-color: rgba(0, 140, 255, 0.4);
+    box-shadow: 0 14px 34px -5px rgba(0, 102, 255, 0.16), 0 0 12px rgba(0, 140, 255, 0.18);
+  }
+  50% {
+    border-color: rgba(0, 212, 255, 0.75);
+    box-shadow: 0 20px 48px -5px rgba(0, 140, 255, 0.32), 0 0 28px rgba(0, 212, 255, 0.45);
+  }
+}
+
+.card-glow-pulse {
+  animation: cardBorderGlow 3.5s ease-in-out infinite;
+}
+
+/* 14. Soft Glowing Hover on Get Started Button */
+.btn-electric-glow {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.btn-electric-glow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 28px rgba(0, 102, 255, 0.7), 0 0 50px rgba(0, 212, 255, 0.5);
+}
+
+/* 15. Shimmering Floating Particles */
+@keyframes particleFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+    opacity: 0.4;
+  }
+  50% {
+    transform: translateY(-20px) scale(1.4);
+    opacity: 1;
+    filter: drop-shadow(0 0 8px #00D4FF);
+  }
+}
+
+.animate-particle-1 { animation: particleFloat 3.5s ease-in-out infinite; }
+.animate-particle-2 { animation: particleFloat 4.8s ease-in-out infinite 1.2s; }
+.animate-particle-3 { animation: particleFloat 5.5s ease-in-out infinite 2.5s; }
+
+/* 16. Accessibility: Respect Reduced-Motion Preferences */
+@media (prefers-reduced-motion: reduce) {
+  .perspective-grid-plane,
+  .electric-ambient-glow-1,
+  .electric-ambient-glow-2,
+  .electric-ambient-glow-3,
+  .animate-swoosh-left,
+  .animate-swoosh-right,
+  .animate-wave-flow,
+  .animate-star-flare-1,
+  .animate-star-flare-2,
+  .animate-star-flare-3,
+  .animate-star-flare-4,
+  .electric-node-pulse,
+  .electric-node-pulse-fast,
+  .electric-node-pulse-slow,
+  .electric-beam-h1,
+  .electric-beam-h2,
+  .electric-beam-v1,
+  .electric-beam-v2,
+  .animate-float-badge-1,
+  .animate-float-badge-2,
+  .animate-float-badge-3,
+  .animate-float-badge-4,
+  .animate-float-badge-5,
+  .animate-float-badge-6,
+  .glowing-medical-badge,
+  .animate-hero-fade-up,
+  .animate-hero-fade-up-delay-1,
+  .animate-hero-fade-up-delay-2,
+  .animate-hero-fade-up-delay-3,
+  .animated-gradient-text,
+  .floating-hero-card,
+  .card-glow-pulse,
+  .animate-particle-1,
+  .animate-particle-2,
+  .animate-particle-3,
+  .dashboard-node-pulse,
+  .dashboard-node-pulse-delayed-1,
+  .dashboard-node-pulse-delayed-2,
+  .dashboard-node-pulse-delayed-3 {
+    animation: none !important;
+    transition: none !important;
+  }
+  .animate-hero-fade-up-delay-1,
+  .animate-hero-fade-up-delay-2,
+  .animate-hero-fade-up-delay-3 {
+    opacity: 1 !important;
+  }
+  .electric-beam-h1,
+  .electric-beam-h2,
+  .electric-beam-v1,
+  .electric-beam-v2 {
+    opacity: 0.35 !important;
+    stroke-dasharray: none !important;
+  }
+}
+
+/* 17. Medication Analysis Dashboard Futuristic Theme */
+.dashboard-medical-grid {
+  background-size: 48px 48px;
+  background-image: 
+    linear-gradient(to right, rgba(0, 102, 255, 0.065) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 102, 255, 0.065) 1px, transparent 1px);
+}
+
+@keyframes dashboardNodePulse {
+  0%, 100% {
+    transform: scale(0.85);
+    opacity: 0.4;
+  }
+  50% {
+    transform: scale(1.3);
+    opacity: 0.95;
+    filter: drop-shadow(0 0 8px #00D4FF) drop-shadow(0 0 14px rgba(0, 212, 255, 0.65));
+  }
+}
+
+.dashboard-node-pulse {
+  animation: dashboardNodePulse 6.5s ease-in-out infinite;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.dashboard-node-pulse-delayed-1 {
+  animation: dashboardNodePulse 7.5s ease-in-out infinite 1.8s;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.dashboard-node-pulse-delayed-2 {
+  animation: dashboardNodePulse 8.5s ease-in-out infinite 3.5s;
+  transform-origin: center;
+  transform-box: fill-box;
+}
+
+.dashboard-node-pulse-delayed-3 {
+  animation: dashboardNodePulse 7s ease-in-out infinite 5s;
+  transform-origin: center;
+  transform-box: fill-box;
+}
