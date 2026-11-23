@@ -1,9 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { mockPatients, niramayaFormulary } from './mockData'
 import MedicalGridBackground from './MedicalGridBackground'
 import DashboardBackground from './DashboardBackground'
+import MedSafeChatbot from './MedSafeChatbot'
+import FeedbackModal from './FeedbackModal'
 import './App.css'
 
 gsap.registerPlugin(ScrollTrigger)
@@ -36,6 +39,51 @@ export default function App() {
   const [activeAnalysisTab, setActiveAnalysisTab] = useState('reconciliation')
   const [searchFormulary, setSearchFormulary] = useState('')
   const [auditNotification, setAuditNotification] = useState(null)
+  const [navMenuOpen, setNavMenuOpen] = useState(false)
+  const [helpModalOpen, setHelpModalOpen] = useState(false)
+  const [feedbackModalOpen, setFeedbackModalOpen] = useState(false)
+  const [isChatbotOpen, setIsChatbotOpen] = useState(false)
+  const wasChatbotOpenRef = useRef(false)
+  const [menuCoords, setMenuCoords] = useState({ top: 76, right: 24 })
+  const navMenuBtnRef = useRef(null)
+  const navDropdownRef = useRef(null)
+
+  const updateMenuPosition = () => {
+    if (navMenuBtnRef.current) {
+      const rect = navMenuBtnRef.current.getBoundingClientRect()
+      setMenuCoords({
+        top: Math.round(rect.bottom + 8),
+        right: Math.max(16, Math.round(window.innerWidth - rect.right)),
+      })
+    }
+  }
+
+  const handleToggleNavMenu = () => {
+    setNavMenuOpen((prev) => {
+      const willOpen = !prev
+      if (willOpen) {
+        if (isChatbotOpen) {
+          wasChatbotOpenRef.current = true
+          setIsChatbotOpen(false)
+        }
+        updateMenuPosition()
+      } else {
+        if (wasChatbotOpenRef.current) {
+          setIsChatbotOpen(true)
+          wasChatbotOpenRef.current = false
+        }
+      }
+      return willOpen
+    })
+  }
+
+  const closeNavMenu = (restore = true) => {
+    setNavMenuOpen(false)
+    if (restore && wasChatbotOpenRef.current) {
+      setIsChatbotOpen(true)
+      wasChatbotOpenRef.current = false
+    }
+  }
 
   const progressBarRef = useRef(null)
   const homeContainerRef = useRef(null)
@@ -188,6 +236,53 @@ export default function App() {
     handleScrollProgress()
     return () => window.removeEventListener('scroll', handleScrollProgress)
   }, [currentView])
+
+  // Keep navbar dropdown aligned with trigger on scroll/resize
+  useEffect(() => {
+    if (!navMenuOpen) return
+    const handleReposition = () => updateMenuPosition()
+    window.addEventListener('resize', handleReposition)
+    window.addEventListener('scroll', handleReposition, { passive: true })
+    return () => {
+      window.removeEventListener('resize', handleReposition)
+      window.removeEventListener('scroll', handleReposition)
+    }
+  }, [navMenuOpen])
+
+  // Navbar Three-Dot Menu, Help Modal & Feedback Modal Click-Outside / Escape Handler
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (feedbackModalOpen) {
+          setFeedbackModalOpen(false)
+        } else if (helpModalOpen) {
+          setHelpModalOpen(false)
+        } else if (navMenuOpen) {
+          closeNavMenu(true)
+        }
+      }
+    }
+
+    const handleClickOutside = (e) => {
+      const clickedBtn = navMenuBtnRef.current && navMenuBtnRef.current.contains(e.target)
+      const clickedDropdown = navDropdownRef.current && navDropdownRef.current.contains(e.target)
+      if (navMenuOpen && !clickedBtn && !clickedDropdown) {
+        closeNavMenu(true)
+      }
+    }
+
+    if (navMenuOpen || helpModalOpen || feedbackModalOpen) {
+      document.addEventListener('keydown', handleKeyDown)
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown)
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+    }
+  }, [navMenuOpen, helpModalOpen, feedbackModalOpen])
 
   // GSAP ScrollTrigger Animations for Homepage
   useEffect(() => {
@@ -523,7 +618,7 @@ export default function App() {
       )}
 
       {/* Navigation Bar */}
-      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+      <header className="sticky top-0 z-[100] bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
         {/* Electric-Blue Scroll Progress Indicator */}
         <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-200/50 overflow-hidden pointer-events-none z-50">
           <div
@@ -615,38 +710,59 @@ export default function App() {
               </button>
             </nav>
 
-            {/* Desktop CTA Button */}
-            <div className="hidden md:flex items-center space-x-3">
+            {/* Desktop Actions & Navbar Three-Dot Menu */}
+            <div className="flex items-center space-x-2 sm:space-x-3 relative">
+              {/* Desktop CTA Button */}
               <button
                 onClick={() => {
                   setCurrentView('analysis')
                   window.scrollTo({ top: 0, behavior: 'smooth' })
                 }}
-                className="inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-blue-700 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/30 active:scale-98 transition duration-150"
+                className="hidden md:inline-flex items-center justify-center px-5 py-2.5 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-blue-600 via-blue-700 to-teal-600 hover:from-blue-700 hover:to-teal-700 shadow-md shadow-blue-500/25 hover:shadow-lg hover:shadow-blue-500/30 active:scale-98 transition duration-150"
               >
-                Get Started
+                {currentView === 'analysis' ? 'Sign In' : 'Get Started'}
                 <svg className="w-4 h-4 ml-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                 </svg>
               </button>
-            </div>
 
-            {/* Mobile Hamburger Toggle */}
-            <div className="md:hidden flex items-center">
+              {/* Three-Dot (⋮) Menu Button */}
               <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 focus:outline-none"
-                aria-label="Toggle Navigation Menu"
+                ref={navMenuBtnRef}
+                onClick={handleToggleNavMenu}
+                aria-label="Navigation options menu"
+                aria-expanded={navMenuOpen}
+                aria-haspopup="true"
+                className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all duration-150 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                  navMenuOpen
+                    ? 'bg-blue-50 border-blue-400 text-blue-700 shadow-sm shadow-blue-500/10'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-blue-600 hover:border-blue-300 shadow-2xs'
+                }`}
               >
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  {mobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                  ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
-                  )}
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <circle cx="12" cy="5" r="1.8" />
+                  <circle cx="12" cy="12" r="1.8" />
+                  <circle cx="12" cy="19" r="1.8" />
                 </svg>
               </button>
+
+              {/* Mobile Hamburger Toggle */}
+              <div className="md:hidden flex items-center">
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                  className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 focus:outline-none"
+                  aria-label="Toggle Navigation Menu"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    {mobileMenuOpen ? (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    ) : (
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+                    )}
+                  </svg>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -704,6 +820,16 @@ export default function App() {
             >
               About
             </button>
+            <button
+              onClick={() => {
+                setMobileMenuOpen(false)
+                setFeedbackModalOpen(true)
+              }}
+              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 transition flex items-center space-x-2"
+            >
+              <span>💬</span>
+              <span>Feedback</span>
+            </button>
             <div className="pt-2">
               <button
                 onClick={() => {
@@ -713,7 +839,7 @@ export default function App() {
                 }}
                 className="w-full py-3 rounded-xl font-bold text-sm text-center text-white bg-blue-600 hover:bg-blue-700 shadow-md"
               >
-                Get Started
+                {currentView === 'analysis' ? 'Sign In' : 'Get Started'}
               </button>
             </div>
           </div>
@@ -745,7 +871,7 @@ export default function App() {
                     </span>
                   </h1>
 
-                  <p className="hero-desc text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
+                  <p className="hero-desc text-base sm:text-lg text-[#0F172A] font-medium max-w-2xl mx-auto lg:mx-0 leading-relaxed">
                     MedSafe AI protects multimorbid and elderly patients against dangerous drug-drug interactions,
                     prescribing cascades, and unnecessary polypharmacy. Integrated with the Government of Odisha Niramaya
                     Essential Formulary and clinical STOPP/START guidelines.
@@ -952,7 +1078,7 @@ export default function App() {
                 <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
                   Comprehensive Precision Medication Defense
                 </h2>
-                <p className="text-slate-600 text-sm sm:text-base">
+                <p className="text-[#0F172A] font-medium text-sm sm:text-base">
                   Designed specifically for multi-doctor prescriptions, chronic elderly patients, and primary health clinics.
                 </p>
               </div>
@@ -1071,7 +1197,7 @@ export default function App() {
                 <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
                   How MedSafe AI Works
                 </h2>
-                <p className="text-slate-600 text-sm sm:text-base">
+                <p className="text-[#0F172A] font-medium text-sm sm:text-base">
                   Three simple steps from prescription entry to clinical safety validation.
                 </p>
               </div>
@@ -1256,12 +1382,12 @@ export default function App() {
                   <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
                     Dedicated to Reducing Polypharmacy Risks Across Odisha
                   </h2>
-                  <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                  <p className="text-[#0F172A] font-medium text-sm sm:text-base leading-relaxed">
                     In rural and urban healthcare systems alike, patients seeing multiple healthcare providers frequently
                     accumulate 5 to 10+ concurrent medications. Without centralized reconciliation, accidental drug interactions,
                     acute renal injury, and adverse falls are leading causes of emergency hospitalization.
                   </p>
-                  <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
+                  <p className="text-[#0F172A] font-medium text-sm sm:text-base leading-relaxed">
                     MedSafe AI bridges this critical gap by empowering frontline doctors, pharmacists, and health workers with
                     real-time intelligence, seamless Niramaya formulary matching, and automated deprescribing assistance.
                   </p>
@@ -1330,12 +1456,12 @@ export default function App() {
                 setCurrentView('home')
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="group inline-flex items-center space-x-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-white border border-slate-200 hover:border-blue-300 px-3.5 py-1.5 rounded-xl shadow-2xs hover:shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              className="group inline-flex items-center space-x-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-white border border-slate-300 hover:border-blue-400 px-3.5 py-1.5 rounded-xl shadow-2xs hover:shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <span className="group-hover:-translate-x-0.5 transition-transform duration-200 inline-block">←</span>
               <span>Back to Homepage</span>
             </button>
-            <div className="text-xs text-slate-500 font-medium">
+            <div className="text-xs text-[#334155] font-medium">
               Interactive Clinical Workspace • <span className="text-teal-700 font-bold">Client-Side Engine</span>
             </div>
           </div>
@@ -1343,7 +1469,7 @@ export default function App() {
           {/* Patient Selector Strip */}
           <div className="dash-patient-selector bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
-              <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
+              <label className="text-xs font-extrabold uppercase tracking-wider text-[#334155]">
                 Active Clinical Case:
               </label>
               <div className="flex flex-wrap gap-2">
@@ -1354,7 +1480,7 @@ export default function App() {
                     className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ease-out hover:scale-[1.02] active:scale-98 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
                       selectedPatientId === p.id
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 border border-blue-500'
-                        : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-transparent shadow-2xs hover:shadow-sm'
+                        : 'bg-slate-100 text-[#0F172A] hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-slate-200 shadow-2xs hover:shadow-sm font-bold'
                     }`}
                   >
                     {p.name} ({p.age}y)
@@ -1363,13 +1489,13 @@ export default function App() {
               </div>
             </div>
 
-            <div className="text-xs text-slate-600 flex items-center space-x-2">
-              <span className="font-semibold">UHID:</span>
-              <span className="font-mono bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-800 font-bold">
+            <div className="text-xs text-[#334155] font-medium flex items-center space-x-2">
+              <span className="font-bold text-[#0F172A]">UHID:</span>
+              <span className="font-mono bg-slate-100 px-2.5 py-1 rounded-lg border border-slate-300 text-[#0F172A] font-extrabold">
                 {currentPatient.uhid}
               </span>
               <span>•</span>
-              <span className="text-slate-500">{currentPatient.location}</span>
+              <span className="text-[#334155] font-semibold">{currentPatient.location}</span>
             </div>
           </div>
 
@@ -1378,8 +1504,8 @@ export default function App() {
             {/* Metric 1 */}
             <div className={`dashboard-summary-card rounded-2xl p-5 border ${polyStatus.bgColor} shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Medications</span>
-                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-white text-slate-800 border border-slate-200">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#334155]">Total Medications</span>
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-white text-[#0F172A] border border-slate-300">
                   {medCount} Active
                 </span>
               </div>
@@ -1387,7 +1513,7 @@ export default function App() {
                 <div className={`text-xl font-black ${polyStatus.textColor}`}>
                   {polyStatus.label}
                 </div>
-                <div className="text-xs text-slate-500 mt-1 flex items-center space-x-1.5">
+                <div className="text-xs text-[#334155] font-medium mt-1 flex items-center space-x-1.5">
                   <span className={`w-2 h-2 rounded-full ${polyStatus.dotColor}`}></span>
                   <span>{polyStatus.badge}</span>
                 </div>
@@ -1397,16 +1523,16 @@ export default function App() {
             {/* Metric 2 */}
             <div className="dashboard-summary-card rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Alerts</span>
-                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#334155]">Clinical Alerts</span>
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-300">
                   {currentPatient.alerts.length} Warnings
                 </span>
               </div>
               <div className="mt-3">
-                <div className="text-xl font-black text-rose-600">
+                <div className="text-xl font-black text-rose-700">
                   {currentPatient.alerts.filter((a) => a.severity === 'critical').length} Critical Hazards
                 </div>
-                <div className="text-xs text-slate-500 mt-1">
+                <div className="text-xs text-[#334155] font-medium mt-1">
                   Nephrotoxicity & bleeding risk flags
                 </div>
               </div>
@@ -1415,30 +1541,30 @@ export default function App() {
             {/* Metric 3 */}
             <div className="dashboard-summary-card rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Niramaya Formulary</span>
-                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#334155]">Niramaya Formulary</span>
+                <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 border border-teal-300">
                   Govt. Scheme
                 </span>
               </div>
               <div className="mt-3">
-                <div className="text-xl font-black text-teal-700">86% Free Stock Match</div>
-                <div className="text-xs text-slate-500 mt-1">Zero out-of-pocket patient cost</div>
+                <div className="text-xl font-black text-teal-800">86% Free Stock Match</div>
+                <div className="text-xs text-[#334155] font-medium mt-1">Zero out-of-pocket patient cost</div>
               </div>
             </div>
 
             {/* Metric 4 */}
             <div className="dashboard-summary-card rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Hospital Center</span>
-                <span className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#334155]">Hospital Center</span>
+                <span className="text-xs font-mono bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 font-bold">
                   Odisha
                 </span>
               </div>
               <div className="mt-3">
-                <div className="text-sm font-bold text-slate-800 truncate">
+                <div className="text-sm font-extrabold text-[#0F172A] truncate">
                   {currentPatient.healthCenter}
                 </div>
-                <div className="text-xs text-slate-500 mt-1 truncate">
+                <div className="text-xs text-[#334155] font-medium mt-1 truncate">
                   {currentPatient.diagnoses.join(', ')}
                 </div>
               </div>
@@ -1446,33 +1572,33 @@ export default function App() {
           </div>
 
           {/* Analysis View Tabs */}
-          <div className="dash-tab-nav border-b border-slate-200 flex space-x-2 sm:space-x-8 overflow-x-auto">
+          <div className="dash-tab-nav border-b border-slate-300 flex space-x-2 sm:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveAnalysisTab('reconciliation')}
-              className={`pb-3.5 px-3 text-sm font-bold transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
+              className={`pb-3.5 px-3 text-sm transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
                 activeAnalysisTab === 'reconciliation'
                   ? 'border-blue-600 text-blue-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-blue-600 hover:border-slate-300'
+                  : 'border-transparent text-[#334155] hover:text-[#0F172A] hover:border-slate-400 font-semibold'
               }`}
             >
               <span>📋 Prescription & Drug Interactions ({medCount})</span>
             </button>
             <button
               onClick={() => setActiveAnalysisTab('ai-summary')}
-              className={`pb-3.5 px-3 text-sm font-bold transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
+              className={`pb-3.5 px-3 text-sm transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
                 activeAnalysisTab === 'ai-summary'
                   ? 'border-blue-600 text-blue-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-blue-600 hover:border-slate-300'
+                  : 'border-transparent text-[#334155] hover:text-[#0F172A] hover:border-slate-400 font-semibold'
               }`}
             >
               <span>🤖 AI Deprescribing Recommendations</span>
             </button>
             <button
               onClick={() => setActiveAnalysisTab('niramaya')}
-              className={`pb-3.5 px-3 text-sm font-bold transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
+              className={`pb-3.5 px-3 text-sm transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
                 activeAnalysisTab === 'niramaya'
                   ? 'border-blue-600 text-blue-700 font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-blue-600 hover:border-slate-300'
+                  : 'border-transparent text-[#334155] hover:text-[#0F172A] hover:border-slate-400 font-semibold'
               }`}
             >
               <span>🏥 Niramaya Essential Drug Formulary</span>
@@ -1488,8 +1614,8 @@ export default function App() {
               <div className="lg:col-span-2 space-y-4">
                 {/* Add Drug Bar */}
                 <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
-                  <h3 className="text-sm font-extrabold text-slate-900 mb-1">Add Drug to Regimen</h3>
-                  <p className="text-xs text-slate-500 mb-4">
+                  <h3 className="text-sm font-extrabold text-[#0F172A] mb-1">Add Drug to Regimen</h3>
+                  <p className="text-xs text-[#334155] font-medium mb-4">
                     Simulate co-prescribing an additional medicine to evaluate real-time interaction risks
                   </p>
                   <form onSubmit={handleAddMedication} className="grid grid-cols-1 sm:grid-cols-4 gap-2.5">
@@ -1498,18 +1624,18 @@ export default function App() {
                       placeholder="Drug name (e.g. Ciprofloxacin)"
                       value={newDrugName}
                       onChange={(e) => setNewDrugName(e.target.value)}
-                      className="sm:col-span-2 bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="sm:col-span-2 bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-[#0F172A] placeholder-slate-500 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <input
                       type="text"
                       placeholder="Dose (e.g. 500mg)"
                       value={newDrugDose}
                       onChange={(e) => setNewDrugDose(e.target.value)}
-                      className="bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2 text-xs text-[#0F172A] placeholder-slate-500 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                     <button
                       type="submit"
-                      className="group bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-98 border border-blue-500 hover:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-1"
+                      className="group bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all duration-200 ease-out shadow-sm hover:shadow-md hover:shadow-blue-500/30 hover:scale-[1.02] active:scale-98 border border-blue-500 hover:border-cyan-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center justify-center space-x-1"
                     >
                       <span className="group-hover:rotate-90 transition-transform duration-200 inline-block text-sm leading-none">+</span>
                       <span>Add Drug</span>
@@ -1536,17 +1662,17 @@ export default function App() {
                         />
                         <div>
                           <div className="flex items-center space-x-2">
-                            <span className="font-extrabold text-sm text-slate-900">{med.name}</span>
-                            <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                            <span className="font-extrabold text-sm text-[#0F172A]">{med.name}</span>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-[#0F172A] border border-slate-300">
                               {med.dose}
                             </span>
                           </div>
-                          <div className="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-                            <span>{med.freq}</span>
-                            <span>•</span>
-                            <span className="text-slate-700 font-medium">{med.category}</span>
-                            <span>•</span>
-                            <span className="text-teal-700 text-[11px] font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-200">
+                          <div className="text-xs text-[#334155] font-medium mt-1 flex flex-wrap items-center gap-2">
+                            <span className="font-medium text-[#334155]">{med.freq}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-[#0F172A] font-semibold">{med.category}</span>
+                            <span className="text-slate-400">•</span>
+                            <span className="text-teal-800 text-[11px] font-bold bg-teal-50 px-2 py-0.5 rounded border border-teal-300">
                               {med.niramayaStock}
                             </span>
                           </div>
@@ -1555,7 +1681,7 @@ export default function App() {
 
                       <button
                         onClick={() => handleRemoveMedication(med.id, med.name)}
-                        className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-100 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-200 hover:border-rose-400 hover:shadow-sm hover:shadow-rose-500/20 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 self-end sm:self-auto"
+                        className="text-xs font-bold text-rose-700 hover:text-rose-800 hover:bg-rose-100 px-3 py-1.5 rounded-xl bg-rose-50 border border-rose-300 hover:border-rose-400 hover:shadow-sm hover:shadow-rose-500/20 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-offset-1 self-end sm:self-auto"
                       >
                         Deprescribe
                       </button>
@@ -1567,11 +1693,11 @@ export default function App() {
               {/* Right Column: Detected Interactions */}
               <div className="space-y-4">
                 <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
-                    <h3 className="text-sm font-extrabold text-slate-900 flex items-center space-x-1.5">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-200">
+                    <h3 className="text-sm font-extrabold text-[#0F172A] flex items-center space-x-1.5">
                       <span>⚠️ Detected Clinical Hazards</span>
                     </h3>
-                    <span className="text-xs font-extrabold text-rose-600 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-200">
+                    <span className="text-xs font-extrabold text-rose-700 bg-rose-50 px-2.5 py-0.5 rounded-full border border-rose-300">
                       {currentPatient.alerts.length} Flagged
                     </span>
                   </div>
@@ -1582,20 +1708,24 @@ export default function App() {
                         key={alert.id}
                         className={`p-4 rounded-2xl border text-xs space-y-1.5 transition-all duration-300 ease-out hover:-translate-y-1 shadow-2xs hover:shadow-md ${
                           alert.severity === 'critical'
-                            ? 'bg-rose-50/80 border-rose-200 text-rose-900 hover:border-rose-400 hover:shadow-rose-500/15 hover:bg-rose-50'
+                            ? 'bg-rose-50/90 border-rose-300 text-rose-950 hover:border-rose-400 hover:shadow-rose-500/15 hover:bg-rose-50'
                             : alert.severity === 'high'
-                            ? 'bg-amber-50/80 border-amber-200 text-amber-900 hover:border-amber-400 hover:shadow-amber-500/15 hover:bg-amber-50'
-                            : 'bg-blue-50/80 border-blue-200 text-blue-900 hover:border-blue-400 hover:shadow-blue-500/15 hover:bg-blue-50'
+                            ? 'bg-amber-50/90 border-amber-300 text-amber-950 hover:border-amber-400 hover:shadow-amber-500/15 hover:bg-amber-50'
+                            : 'bg-blue-50/90 border-blue-300 text-blue-950 hover:border-blue-400 hover:shadow-blue-500/15 hover:bg-blue-50'
                         }`}
                       >
                         <div className="flex items-center justify-between">
-                          <span className="font-extrabold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-white/80 border border-current">
+                          <span className={`font-extrabold text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-white shadow-2xs ${
+                            alert.severity === 'critical' ? 'text-rose-700 border border-rose-300' :
+                            alert.severity === 'high' ? 'text-amber-700 border border-amber-300' :
+                            'text-blue-700 border border-blue-300'
+                          }`}>
                             {alert.severity} Risk
                           </span>
                         </div>
-                        <div className="font-bold text-slate-900 text-sm mt-1">{alert.title}</div>
-                        <p className="text-slate-700 text-xs leading-relaxed">{alert.description}</p>
-                        <div className="pt-2 text-xs font-bold text-teal-800 bg-white/90 p-2.5 rounded-xl border border-teal-200/80">
+                        <div className="font-extrabold text-[#0F172A] text-sm mt-1">{alert.title}</div>
+                        <p className="text-[#334155] font-medium text-xs leading-relaxed">{alert.description}</p>
+                        <div className="pt-2 text-xs font-bold text-teal-900 bg-white p-2.5 rounded-xl border border-teal-300 shadow-2xs">
                           💡 Action: {alert.action}
                         </div>
                       </div>
@@ -1614,38 +1744,38 @@ export default function App() {
                   🤖
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">AI Clinical Deprescribing Synthesis</h3>
-                  <p className="text-xs text-slate-500">
+                  <h3 className="text-base font-extrabold text-[#0F172A]">AI Clinical Deprescribing Synthesis</h3>
+                  <p className="text-xs text-[#334155] font-medium">
                     Calculated using STOPP/START, Beers Criteria & Odisha Formulary Guidelines
                   </p>
                 </div>
               </div>
 
-              <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-5 text-sm text-slate-800 leading-relaxed font-medium">
+              <div className="bg-blue-50/80 border border-blue-200 rounded-2xl p-5 text-sm text-[#0F172A] leading-relaxed font-medium">
                 {currentPatient.aiSummary}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 hover:-translate-y-1 hover:shadow-md hover:border-blue-300 transition-all duration-300 ease-out">
-                  <span className="text-xs font-bold uppercase text-blue-700">Priority 1</span>
-                  <h4 className="text-sm font-bold text-slate-900">Eliminate Nephrotoxics</h4>
-                  <p className="text-xs text-slate-600">
+                  <span className="text-xs font-extrabold uppercase text-blue-800">Priority 1</span>
+                  <h4 className="text-sm font-bold text-[#334155]">Eliminate Nephrotoxics</h4>
+                  <p className="text-xs text-[#334155] font-medium leading-relaxed">
                     Deprescribe oral NSAIDs immediately in patients with eGFR &lt; 60 or on concurrent ACEi/ARBs.
                   </p>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 hover:-translate-y-1 hover:shadow-md hover:border-teal-300 transition-all duration-300 ease-out">
-                  <span className="text-xs font-bold uppercase text-teal-700">Priority 2</span>
-                  <h4 className="text-sm font-bold text-slate-900">Renal Dose Adjustment</h4>
-                  <p className="text-xs text-slate-600">
+                  <span className="text-xs font-extrabold uppercase text-teal-800">Priority 2</span>
+                  <h4 className="text-sm font-bold text-[#334155]">Renal Dose Adjustment</h4>
+                  <p className="text-xs text-[#334155] font-medium leading-relaxed">
                     Adjust metformin or statin dosages down to avoid drug accumulation and lactic acidosis risks.
                   </p>
                 </div>
 
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-2 hover:-translate-y-1 hover:shadow-md hover:border-blue-300 transition-all duration-300 ease-out">
-                  <span className="text-xs font-bold uppercase text-blue-700">Priority 3</span>
-                  <h4 className="text-sm font-bold text-slate-900">Niramaya Generic Switch</h4>
-                  <p className="text-xs text-slate-600">
+                  <span className="text-xs font-extrabold uppercase text-blue-800">Priority 3</span>
+                  <h4 className="text-sm font-bold text-[#334155]">Niramaya Generic Switch</h4>
+                  <p className="text-xs text-[#334155] font-medium leading-relaxed">
                     Replace branded retail formulations with verified free state supplies available at CHCs.
                   </p>
                 </div>
@@ -1658,8 +1788,8 @@ export default function App() {
             <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-xs space-y-5">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Odisha Niramaya Essential Drug Formulary</h3>
-                  <p className="text-xs text-slate-500">
+                  <h3 className="text-base font-extrabold text-[#0F172A]">Odisha Niramaya Essential Drug Formulary</h3>
+                  <p className="text-xs text-[#334155] font-medium">
                     Government of Odisha Free Medicine Distribution Coverage
                   </p>
                 </div>
@@ -1668,13 +1798,13 @@ export default function App() {
                   placeholder="Filter drug by name or category..."
                   value={searchFormulary}
                   onChange={(e) => setSearchFormulary(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 hover:border-blue-300 rounded-xl px-4 py-2 text-xs text-slate-800 placeholder-slate-400 w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
+                  className="bg-slate-50 border border-slate-300 hover:border-blue-400 rounded-xl px-4 py-2 text-xs text-[#0F172A] placeholder-slate-500 font-medium w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors duration-200"
                 />
               </div>
 
               <div className="overflow-x-auto rounded-2xl border border-slate-200">
                 <table className="w-full text-left text-xs text-slate-700">
-                  <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] tracking-wider border-b border-slate-200">
+                  <thead className="bg-slate-100 text-[#334155] uppercase text-[10px] tracking-wider border-b border-slate-300 font-bold">
                     <tr>
                       <th className="px-4 py-3">Formulary Code</th>
                       <th className="px-4 py-3">Medicine Name</th>
@@ -1687,9 +1817,9 @@ export default function App() {
                     {filteredFormulary.map((item) => (
                       <tr key={item.code} className="hover:bg-blue-50/50 transition-colors duration-150">
                         <td className="px-4 py-3 font-mono font-bold text-blue-700">{item.code}</td>
-                        <td className="px-4 py-3 font-bold text-slate-900">{item.name}</td>
-                        <td className="px-4 py-3">{item.category}</td>
-                        <td className="px-4 py-3 text-slate-500">{item.tier}</td>
+                        <td className="px-4 py-3 font-bold text-[#0F172A]">{item.name}</td>
+                        <td className="px-4 py-3 font-medium text-[#334155]">{item.category}</td>
+                        <td className="px-4 py-3 font-medium text-[#334155]">{item.tier}</td>
                         <td className="px-4 py-3">
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
@@ -1807,6 +1937,248 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      {/* Help & Support Information Modal Panel */}
+      {helpModalOpen && (
+        <div
+          role="dialog"
+          aria-label="MedSafe AI Help and Support"
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+        >
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-200 animate-dropdown-appear space-y-5 relative max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-teal-500 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                  💡
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0F172A]">MedSafe AI • Help & Support</h3>
+                  <p className="text-xs text-[#334155] font-medium">Quick Guidance & Clinical Support</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setHelpModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors"
+                aria-label="Close Help Panel"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content items */}
+            <div className="space-y-3.5 text-xs">
+              <div className="bg-blue-50/80 border border-blue-200/80 rounded-2xl p-4 space-y-1.5">
+                <h4 className="font-bold text-blue-900 flex items-center space-x-1.5">
+                  <span>📋</span>
+                  <span>How to Audit a Prescription</span>
+                </h4>
+                <p className="text-[#334155] font-medium leading-relaxed">
+                  Navigate to <strong>Medication Analysis</strong>. Select an active clinical case to view their active drug regimen, real-time polypharmacy score, and automated STOPP/START hazard cross-checks.
+                </p>
+              </div>
+
+              <div className="bg-teal-50/80 border border-teal-200/80 rounded-2xl p-4 space-y-1.5">
+                <h4 className="font-bold text-teal-900 flex items-center space-x-1.5">
+                  <span>🏥</span>
+                  <span>Odisha Niramaya Formulary Matching</span>
+                </h4>
+                <p className="text-[#334155] font-medium leading-relaxed">
+                  Each medication card displays its Niramaya stock status. The <strong>Formulary Tab</strong> allows doctors to verify 570+ free government-supplied generic medicines across PHCs and CHCs.
+                </p>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-1.5">
+                <h4 className="font-bold text-[#0F172A] flex items-center space-x-1.5">
+                  <span>🤖</span>
+                  <span>AI Assistant & Decision Support</span>
+                </h4>
+                <p className="text-[#334155] font-medium leading-relaxed">
+                  Click the floating chatbot in the bottom-right corner anytime to ask educational questions regarding drug contraindications, geriatric rules, or deprescribing steps.
+                </p>
+              </div>
+            </div>
+
+            {/* Footer Notice */}
+            <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <span className="text-slate-500 text-[11px]">
+                Odisha Healthcare Hackathon Initiative
+              </span>
+              <button
+                onClick={() => setHelpModalOpen(false)}
+                className="w-full sm:w-auto px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold transition-colors shadow-sm"
+              >
+                Got It
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navbar Dropdown Menu Portal (Fixed Layering z-index 300) */}
+      {navMenuOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={navDropdownRef}
+          role="menu"
+          aria-label="Navbar options menu"
+          style={{
+            position: 'fixed',
+            top: `${menuCoords.top}px`,
+            right: `${menuCoords.right}px`,
+            zIndex: 300,
+          }}
+          className="w-64 max-w-[calc(100vw-32px)] bg-white rounded-2xl shadow-2xl shadow-blue-950/20 border border-slate-200/90 py-2 animate-dropdown-appear pointer-events-auto"
+        >
+          <div className="px-4 py-2 border-b border-slate-100 mb-1">
+            <p className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">Navigation & Tools</p>
+          </div>
+
+          {/* 1. Home */}
+          <button
+            onClick={() => {
+              closeNavMenu(false)
+              if (currentView !== 'home') {
+                setCurrentView('home')
+              }
+              setActiveNavSection('home')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            role="menuitem"
+            className={`w-full px-4 py-2.5 text-left text-xs flex items-center space-x-3 transition-colors ${
+              currentView === 'home' && activeNavSection === 'home'
+                ? 'bg-blue-50/90 text-blue-700 font-bold border-l-2 border-blue-600'
+                : 'text-[#0F172A] font-semibold hover:bg-blue-50/60 hover:text-blue-700'
+            }`}
+          >
+            <span className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+            </span>
+            <span>Home</span>
+          </button>
+
+          {/* 2. Medication Analysis */}
+          <button
+            onClick={() => {
+              closeNavMenu(false)
+              setCurrentView('analysis')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            role="menuitem"
+            className={`w-full px-4 py-2.5 text-left text-xs flex items-center space-x-3 transition-colors ${
+              currentView === 'analysis'
+                ? 'bg-blue-50/90 text-blue-700 font-bold border-l-2 border-blue-600'
+                : 'text-[#0F172A] font-semibold hover:bg-blue-50/60 hover:text-blue-700'
+            }`}
+          >
+            <span className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+            </span>
+            <span>Medication Analysis</span>
+          </button>
+
+          {/* 3. How It Works */}
+          <button
+            onClick={() => {
+              closeNavMenu(false)
+              scrollToSection('how-it-works')
+            }}
+            role="menuitem"
+            className={`w-full px-4 py-2.5 text-left text-xs flex items-center space-x-3 transition-colors ${
+              currentView === 'home' && activeNavSection === 'how-it-works'
+                ? 'bg-blue-50/90 text-blue-700 font-bold border-l-2 border-blue-600'
+                : 'text-[#0F172A] font-semibold hover:bg-blue-50/60 hover:text-blue-700'
+            }`}
+          >
+            <span className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+              </svg>
+            </span>
+            <span>How It Works</span>
+          </button>
+
+          {/* 4. About MedSafe AI */}
+          <button
+            onClick={() => {
+              closeNavMenu(false)
+              scrollToSection('about')
+            }}
+            role="menuitem"
+            className={`w-full px-4 py-2.5 text-left text-xs flex items-center space-x-3 transition-colors ${
+              currentView === 'home' && activeNavSection === 'about'
+                ? 'bg-blue-50/90 text-blue-700 font-bold border-l-2 border-blue-600'
+                : 'text-[#0F172A] font-semibold hover:bg-blue-50/60 hover:text-blue-700'
+            }`}
+          >
+            <span className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span>About MedSafe AI</span>
+          </button>
+
+          <div className="my-1.5 border-t border-slate-100" />
+
+          {/* 5. Help & Support */}
+          <button
+            onClick={() => {
+              closeNavMenu(false)
+              setHelpModalOpen(true)
+            }}
+            role="menuitem"
+            className="w-full px-4 py-2.5 text-left text-xs flex items-center space-x-3 text-[#0F172A] font-semibold hover:bg-blue-50/60 hover:text-blue-700 transition-colors"
+          >
+            <span className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span>Help & Support</span>
+          </button>
+
+          {/* 6. Feedback */}
+          <button
+            onClick={() => {
+              closeNavMenu(false)
+              setFeedbackModalOpen(true)
+            }}
+            role="menuitem"
+            className="w-full px-4 py-2.5 text-left text-xs flex items-center space-x-3 text-[#0F172A] font-semibold hover:bg-blue-50/60 hover:text-blue-700 transition-colors"
+          >
+            <span className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+              </svg>
+            </span>
+            <span>Feedback</span>
+          </button>
+        </div>,
+        document.body
+      )}
+
+      {/* Feedback Modal Dialog */}
+      <FeedbackModal
+        isOpen={feedbackModalOpen}
+        onClose={() => setFeedbackModalOpen(false)}
+      />
+
+      {/* Floating MedSafe AI Assistant Widget */}
+      <MedSafeChatbot
+        isOpen={isChatbotOpen}
+        onToggleOpen={(open) => {
+          setIsChatbotOpen(open)
+          if (!open) {
+            wasChatbotOpenRef.current = false
+          }
+        }}
+      />
     </div>
   )
 }

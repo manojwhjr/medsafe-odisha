@@ -547,3 +547,83 @@
   border-color: rgba(0, 212, 255, 0.65);
   box-shadow: 0 10px 28px -4px rgba(0, 102, 255, 0.4), 0 0 18px rgba(0, 212, 255, 0.45);
 }
+
+/* 19. Floating MedSafe AI Chatbot Widget Styles */
+@keyframes chatbotAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-chatbot-appear {
+  animation: chatbotAppear 240ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: bottom right;
+}
+
+@keyframes chatbotGlow {
+  0%, 100% {
+    box-shadow: 0 10px 25px -4px rgba(0, 102, 255, 0.4), 0 0 15px rgba(0, 212, 255, 0.25);
+  }
+  50% {
+    box-shadow: 0 14px 32px -4px rgba(0, 102, 255, 0.55), 0 0 25px rgba(0, 212, 255, 0.45);
+  }
+}
+
+.chatbot-float-btn {
+  animation: chatbotGlow 4s ease-in-out infinite;
+}
+
+@keyframes dropdownAppear {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-dropdown-appear {
+  animation: dropdownAppear 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: top right;
+}
+
+/* Modal Fade & Scale In */
+@keyframes modalScaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-modal-scale-in {
+  animation: modalScaleIn 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transform-origin: center;
+}
+
+/* Chatbot Send Button Hover Glow Effect */
+.chatbot-send-btn:not(:disabled):hover {
+  box-shadow: 0 4px 16px -2px rgba(0, 102, 255, 0.45), 0 0 14px rgba(0, 212, 255, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-chatbot-appear,
+  .chatbot-float-btn,
+  .animate-dropdown-appear,
+  .animate-modal-scale-in,
+  .chatbot-send-btn {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+}
