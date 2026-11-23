@@ -38,7 +38,7 @@ export default function MedicalGridBackground() {
 
       {/* 4. Sweeping Curved Luminous Neon Light Waves (Curved and smoothly dissolved before bottom) */}
       <div 
-        className="absolute inset-x-0 bottom-0 h-64 sm:h-72 overflow-hidden pointer-events-none z-0"
+        className="hero-parallax-waves absolute inset-x-0 bottom-0 h-64 sm:h-72 overflow-hidden pointer-events-none z-0"
         style={{
           maskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 35%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.12) 75%, transparent 86%, transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, rgba(0,0,0,1) 0%, rgba(0,0,0,1) 35%, rgba(0,0,0,0.5) 60%, rgba(0,0,0,0.12) 75%, transparent 86%, transparent 100%)'
@@ -109,7 +109,7 @@ export default function MedicalGridBackground() {
 
       {/* 5. 3D Perspective Grid Plane Across the Bottom (Dissolves into transparent space before reaching bottom edge) */}
       <div 
-        className="absolute bottom-0 left-0 right-0 h-72 sm:h-80 overflow-hidden perspective-grid-container pointer-events-none opacity-90"
+        className="hero-parallax-grid absolute bottom-0 left-0 right-0 h-72 sm:h-80 overflow-hidden perspective-grid-container pointer-events-none opacity-90"
         style={{
           maskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.15) 70%, transparent 84%, transparent 100%)',
           WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.3) 12%, rgba(0,0,0,0.9) 35%, rgba(0,0,0,0.55) 55%, rgba(0,0,0,0.15) 70%, transparent 84%, transparent 100%)'
@@ -128,7 +128,7 @@ export default function MedicalGridBackground() {
 
       {/* 6. Neural Constellation Network & Glowing Circuit Pulses */}
       <svg
-        className="absolute inset-0 w-full h-full opacity-95 pointer-events-none"
+        className="hero-parallax-nodes absolute inset-0 w-full h-full opacity-95 pointer-events-none"
         viewBox="0 0 1440 680"
         preserveAspectRatio="xMidYMid slice"
         fill="none"
@@ -239,7 +239,7 @@ export default function MedicalGridBackground() {
       {/* --- LEFT FLANK BADGES --- */}
 
       {/* Badge 1: Medicine Capsule (Top-Left) */}
-      <div className="absolute top-[12%] left-[2%] sm:left-[3%] lg:left-[4%] pointer-events-none animate-float-badge-1 select-none">
+      <div className="hero-parallax-badge-left absolute top-[12%] left-[2%] sm:left-[3%] lg:left-[4%] pointer-events-none animate-float-badge-1 select-none">
         <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/25 backdrop-blur-md border border-[#00D4FF]/70 shadow-[0_0_24px_rgba(0,212,255,0.45)] flex items-center justify-center glowing-medical-badge">
           <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white filter drop-shadow-[0_0_6px_#00D4FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {/* Pill Capsule */}
@@ -250,7 +250,7 @@ export default function MedicalGridBackground() {
       </div>
 
       {/* Badge 2: Medical Cross (Mid-Left) */}
-      <div className="absolute top-[40%] left-[1.5%] sm:left-[2.5%] lg:left-[3.5%] pointer-events-none animate-float-badge-2 select-none">
+      <div className="hero-parallax-badge-left absolute top-[40%] left-[1.5%] sm:left-[2.5%] lg:left-[3.5%] pointer-events-none animate-float-badge-2 select-none">
         <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/25 backdrop-blur-md border border-[#00D4FF]/70 shadow-[0_0_24px_rgba(0,212,255,0.45)] flex items-center justify-center glowing-medical-badge">
           <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white filter drop-shadow-[0_0_6px_#00D4FF]" viewBox="0 0 24 24" fill="currentColor">
             {/* Medical Cross */}
@@ -260,7 +260,7 @@ export default function MedicalGridBackground() {
       </div>
 
       {/* Badge 3: Heartbeat ECG Heart (Bottom-Left) */}
-      <div className="absolute top-[68%] left-[2%] sm:left-[3%] lg:left-[4%] pointer-events-none animate-float-badge-3 select-none">
+      <div className="hero-parallax-badge-left absolute top-[68%] left-[2%] sm:left-[3%] lg:left-[4%] pointer-events-none animate-float-badge-3 select-none">
         <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/25 backdrop-blur-md border border-[#00D4FF]/70 shadow-[0_0_24px_rgba(0,212,255,0.45)] flex items-center justify-center glowing-medical-badge">
           <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white filter drop-shadow-[0_0_6px_#00D4FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {/* Heart with Pulse */}
@@ -273,7 +273,7 @@ export default function MedicalGridBackground() {
       {/* --- RIGHT FLANK BADGES --- */}
 
       {/* Badge 4: DNA Double Helix (Top-Right) */}
-      <div className="absolute top-[12%] right-[2%] sm:right-[3%] lg:right-[4%] pointer-events-none animate-float-badge-4 select-none">
+      <div className="hero-parallax-badge-right absolute top-[12%] right-[2%] sm:right-[3%] lg:right-[4%] pointer-events-none animate-float-badge-4 select-none">
         <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/25 backdrop-blur-md border border-[#00D4FF]/70 shadow-[0_0_24px_rgba(0,212,255,0.45)] flex items-center justify-center glowing-medical-badge">
           <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white filter drop-shadow-[0_0_6px_#00D4FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {/* DNA Helix */}
@@ -287,7 +287,7 @@ export default function MedicalGridBackground() {
       </div>
 
       {/* Badge 5: Laboratory Flask (Mid-Right) */}
-      <div className="absolute top-[40%] right-[1.5%] sm:right-[2.5%] lg:right-[3.5%] pointer-events-none animate-float-badge-5 select-none">
+      <div className="hero-parallax-badge-right absolute top-[40%] right-[1.5%] sm:right-[2.5%] lg:right-[3.5%] pointer-events-none animate-float-badge-5 select-none">
         <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/25 backdrop-blur-md border border-[#00D4FF]/70 shadow-[0_0_24px_rgba(0,212,255,0.45)] flex items-center justify-center glowing-medical-badge">
           <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white filter drop-shadow-[0_0_6px_#00D4FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {/* Chemistry Flask */}
@@ -299,7 +299,7 @@ export default function MedicalGridBackground() {
       </div>
 
       {/* Badge 6: Healthcare Shield with Cross (Bottom-Right) */}
-      <div className="absolute top-[68%] right-[2%] sm:right-[3%] lg:right-[4%] pointer-events-none animate-float-badge-6 select-none">
+      <div className="hero-parallax-badge-right absolute top-[68%] right-[2%] sm:right-[3%] lg:right-[4%] pointer-events-none animate-float-badge-6 select-none">
         <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-full bg-white/25 backdrop-blur-md border border-[#00D4FF]/70 shadow-[0_0_24px_rgba(0,212,255,0.45)] flex items-center justify-center glowing-medical-badge">
           <svg className="w-7 h-7 sm:w-8 sm:h-8 text-white filter drop-shadow-[0_0_6px_#00D4FF]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             {/* Shield with Inner Cross */}

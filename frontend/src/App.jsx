@@ -1,8 +1,12 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { mockPatients, niramayaFormulary } from './mockData'
 import MedicalGridBackground from './MedicalGridBackground'
 import DashboardBackground from './DashboardBackground'
 import './App.css'
+
+gsap.registerPlugin(ScrollTrigger)
 
 function AnimatedCounter({ end, duration = 1200, suffix = '' }) {
   const [count, setCount] = useState(0)
@@ -26,11 +30,18 @@ function AnimatedCounter({ end, duration = 1200, suffix = '' }) {
 
 export default function App() {
   const [currentView, setCurrentView] = useState('home') // 'home' | 'analysis' | 'about'
+  const [activeNavSection, setActiveNavSection] = useState('home')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [selectedPatientId, setSelectedPatientId] = useState('p1')
   const [activeAnalysisTab, setActiveAnalysisTab] = useState('reconciliation')
   const [searchFormulary, setSearchFormulary] = useState('')
   const [auditNotification, setAuditNotification] = useState(null)
+
+  const progressBarRef = useRef(null)
+  const homeContainerRef = useRef(null)
+  const dashboardContainerRef = useRef(null)
+  const hasDashboardAnimatedRef = useRef(false)
+  const [ctaMousePos, setCtaMousePos] = useState({ x: -1000, y: -1000, isHovered: false })
 
   // Medication state per patient
   const [patientsData, setPatientsData] = useState(() => {
@@ -149,13 +160,357 @@ export default function App() {
       setCurrentView('home')
       setTimeout(() => {
         const el = document.getElementById(id)
-        if (el) el.scrollIntoView({ behavior: 'smooth' })
+        if (el) {
+          const y = el.getBoundingClientRect().top + window.pageYOffset - 80
+          window.scrollTo({ top: y, behavior: 'smooth' })
+        }
       }, 100)
     } else {
       const el = document.getElementById(id)
-      if (el) el.scrollIntoView({ behavior: 'smooth' })
+      if (el) {
+        const y = el.getBoundingClientRect().top + window.pageYOffset - 80
+        window.scrollTo({ top: y, behavior: 'smooth' })
+      }
     }
   }
+
+  // Scroll Progress Bar Update
+  useEffect(() => {
+    const handleScrollProgress = () => {
+      const totalScroll = document.documentElement.scrollHeight - window.innerHeight
+      if (totalScroll > 0 && progressBarRef.current) {
+        const progress = Math.min(1, Math.max(0, window.scrollY / totalScroll))
+        progressBarRef.current.style.transform = `scaleX(${progress})`
+      }
+    }
+
+    window.addEventListener('scroll', handleScrollProgress, { passive: true })
+    handleScrollProgress()
+    return () => window.removeEventListener('scroll', handleScrollProgress)
+  }, [currentView])
+
+  // GSAP ScrollTrigger Animations for Homepage
+  useEffect(() => {
+    if (currentView !== 'home') return
+
+    const mm = gsap.matchMedia()
+
+    const ctx = gsap.context(() => {
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        // 1. Initial Hero Section Entrance Animation
+        const heroTl = gsap.timeline({ defaults: { ease: 'power3.out' } })
+        
+        heroTl
+          .fromTo('.hero-badge', 
+            { opacity: 0, y: 25 }, 
+            { opacity: 1, y: 0, duration: 0.6 }
+          )
+          .fromTo('.hero-heading', 
+            { opacity: 0, y: 35 }, 
+            { opacity: 1, y: 0, duration: 0.8 }, 
+            "-=0.35"
+          )
+          .fromTo('.hero-desc', 
+            { opacity: 0, y: 28 }, 
+            { opacity: 1, y: 0, duration: 0.7 }, 
+            "-=0.45"
+          )
+          .fromTo('.hero-buttons', 
+            { opacity: 0, y: 25 }, 
+            { opacity: 1, y: 0, duration: 0.6 }, 
+            "-=0.35"
+          )
+          .fromTo('.hero-metrics', 
+            { opacity: 0, y: 20 }, 
+            { opacity: 1, y: 0, duration: 0.6 }, 
+            "-=0.3"
+          )
+          .fromTo('.hero-preview-card', 
+            { opacity: 0, x: 45, scale: 0.96 }, 
+            { opacity: 1, x: 0, scale: 1, duration: 0.9, ease: 'power3.out' }, 
+            "-=0.6"
+          )
+
+        // 2. Parallax background movement on scroll
+        gsap.to('.hero-parallax-grid', {
+          y: 75,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '#hero-section',
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 1,
+          }
+        })
+
+        gsap.to('.hero-parallax-waves', {
+          y: -45,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '#hero-section',
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 1.2,
+          }
+        })
+
+        gsap.to('.hero-parallax-nodes', {
+          y: 50,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '#hero-section',
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 0.9,
+          }
+        })
+
+        gsap.to('.hero-parallax-badge-left', {
+          y: -35,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '#hero-section',
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 1.4,
+          }
+        })
+
+        gsap.to('.hero-parallax-badge-right', {
+          y: 45,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: '#hero-section',
+            start: 'top top',
+            end: 'bottom top',
+            scrub: 1.3,
+          }
+        })
+
+        // 3. Features Section Scroll Reveal & Staggered Cards
+        gsap.fromTo('.features-header',
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '#features-section',
+              start: 'top 82%',
+              toggleActions: 'play none none none',
+            }
+          }
+        )
+
+        gsap.fromTo('.feature-card',
+          { opacity: 0, y: 45, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.75,
+            stagger: 0.12,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '.feature-card-grid',
+              start: 'top 82%',
+              toggleActions: 'play none none none',
+            },
+            clearProps: 'transform'
+          }
+        )
+
+        // 4. How It Works Section Scroll Reveal & Staggered Cards
+        gsap.fromTo('.how-it-works-header',
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '#how-it-works',
+              start: 'top 82%',
+              toggleActions: 'play none none none',
+            }
+          }
+        )
+
+        gsap.fromTo('.how-it-works-card',
+          { opacity: 0, y: 45, scale: 0.96 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.75,
+            stagger: 0.12,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '.how-it-works-grid',
+              start: 'top 82%',
+              toggleActions: 'play none none none',
+            },
+            clearProps: 'transform'
+          }
+        )
+
+        gsap.fromTo('.how-it-works-cta',
+          { opacity: 0, y: 30 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '.how-it-works-cta',
+              start: 'top 85%',
+              toggleActions: 'play none none none',
+            },
+            clearProps: 'transform'
+          }
+        )
+
+        // 5. About Section Scroll Reveal
+        gsap.fromTo('.about-text',
+          { opacity: 0, y: 40 },
+          {
+            opacity: 1,
+            y: 0,
+            duration: 0.8,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '#about',
+              start: 'top 82%',
+              toggleActions: 'play none none none',
+            }
+          }
+        )
+
+        gsap.fromTo('.about-card',
+          { opacity: 0, y: 40, scale: 0.97 },
+          {
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            duration: 0.8,
+            ease: 'power2.out',
+            scrollTrigger: {
+              trigger: '#about',
+              start: 'top 82%',
+              toggleActions: 'play none none none',
+            }
+          }
+        )
+
+        // 6. Dynamic Active Section Tracking in Navigation Bar
+        const sections = [
+          { id: 'hero-section', name: 'home' },
+          { id: 'how-it-works', name: 'how-it-works' },
+          { id: 'about', name: 'about' },
+        ]
+
+        sections.forEach(({ id, name }) => {
+          ScrollTrigger.create({
+            trigger: `#${id}`,
+            start: 'top 45%',
+            end: 'bottom 45%',
+            onEnter: () => setActiveNavSection(name),
+            onEnterBack: () => setActiveNavSection(name),
+          })
+        })
+      })
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set([
+          '.hero-badge', '.hero-heading', '.hero-desc', '.hero-buttons', 
+          '.hero-metrics', '.hero-preview-card', '.features-header', 
+          '.feature-card', '.how-it-works-header', '.how-it-works-card', 
+          '.how-it-works-cta', '.about-text', '.about-card'
+        ], {
+          opacity: 1,
+          y: 0,
+          x: 0,
+          scale: 1,
+          clearProps: 'all'
+        })
+      })
+    }, homeContainerRef)
+
+    return () => {
+      ctx.revert()
+      mm.revert()
+    }
+  }, [currentView])
+
+  // GSAP Entrance Animations for Medication Analysis Dashboard
+  useEffect(() => {
+    if (currentView !== 'analysis') {
+      hasDashboardAnimatedRef.current = false
+      return
+    }
+
+    if (hasDashboardAnimatedRef.current) return
+
+    const mm = gsap.matchMedia()
+    const ctx = gsap.context(() => {
+      mm.add("(prefers-reduced-motion: no-preference)", () => {
+        const tl = gsap.timeline({ 
+          defaults: { ease: 'power2.out' },
+          onComplete: () => {
+            hasDashboardAnimatedRef.current = true
+          }
+        })
+
+        tl.fromTo('.dash-header-bar',
+          { opacity: 0, y: -15 },
+          { opacity: 1, y: 0, duration: 0.5 }
+        )
+        .fromTo('.dash-patient-selector',
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.5 },
+          "-=0.3"
+        )
+        .fromTo('.dashboard-summary-card',
+          { opacity: 0, y: 25, scale: 0.98 },
+          { 
+            opacity: 1, 
+            y: 0, 
+            scale: 1, 
+            duration: 0.6, 
+            stagger: 0.1, 
+            clearProps: 'transform' 
+          },
+          "-=0.2"
+        )
+        .fromTo('.dash-tab-nav',
+          { opacity: 0, y: 15 },
+          { opacity: 1, y: 0, duration: 0.4 },
+          "-=0.2"
+        )
+        .fromTo('.dash-content-area',
+          { opacity: 0, y: 20 },
+          { opacity: 1, y: 0, duration: 0.5, clearProps: 'transform' },
+          "-=0.2"
+        )
+      })
+
+      mm.add("(prefers-reduced-motion: reduce)", () => {
+        gsap.set(['.dash-header-bar', '.dash-patient-selector', '.dashboard-summary-card', '.dash-tab-nav', '.dash-content-area'], {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          clearProps: 'all'
+        })
+        hasDashboardAnimatedRef.current = true
+      })
+    }, dashboardContainerRef)
+
+    return () => {
+      ctx.revert()
+      mm.revert()
+    }
+  }, [currentView])
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 font-sans flex flex-col selection:bg-teal-500 selection:text-white">
@@ -169,6 +524,15 @@ export default function App() {
 
       {/* Navigation Bar */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs">
+        {/* Electric-Blue Scroll Progress Indicator */}
+        <div className="absolute bottom-0 left-0 right-0 h-[3px] bg-slate-200/50 overflow-hidden pointer-events-none z-50">
+          <div
+            ref={progressBarRef}
+            className="h-full w-full bg-gradient-to-r from-[#0066FF] via-[#008CFF] to-[#00D4FF] origin-left shadow-[0_0_8px_#00D4FF]"
+            style={{ transform: 'scaleX(0)' }}
+          />
+        </div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
@@ -185,7 +549,7 @@ export default function App() {
               <div>
                 <div className="flex items-center space-x-1.5">
                   <span className="text-2xl font-black tracking-tight text-slate-900">
-                    PolySafe<span className="text-teal-600 font-extrabold">AI</span>
+                    MedSafe<span className="text-teal-600 font-extrabold">AI</span>
                   </span>
                   <span className="text-[10px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700 border border-teal-200 px-2 py-0.5 rounded-full">
                     Odisha
@@ -201,12 +565,16 @@ export default function App() {
             <nav className="hidden md:flex items-center space-x-1 lg:space-x-2">
               <button
                 onClick={() => {
-                  setCurrentView('home')
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                  if (currentView !== 'home') {
+                    setCurrentView('home')
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }
                 }}
                 className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
-                  currentView === 'home'
-                    ? 'text-blue-700 bg-blue-50/80'
+                  currentView === 'home' && activeNavSection === 'home'
+                    ? 'text-blue-700 bg-blue-50/90 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100/70'
                 }`}
               >
@@ -219,7 +587,7 @@ export default function App() {
                 }}
                 className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
                   currentView === 'analysis'
-                    ? 'text-blue-700 bg-blue-50/80'
+                    ? 'text-blue-700 bg-blue-50/90 shadow-2xs font-bold'
                     : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100/70'
                 }`}
               >
@@ -227,13 +595,21 @@ export default function App() {
               </button>
               <button
                 onClick={() => scrollToSection('how-it-works')}
-                className="px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 transition"
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
+                  currentView === 'home' && activeNavSection === 'how-it-works'
+                    ? 'text-blue-700 bg-blue-50/90 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100/70'
+                }`}
               >
                 How It Works
               </button>
               <button
                 onClick={() => scrollToSection('about')}
-                className="px-3.5 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:text-blue-600 hover:bg-slate-100/70 transition"
+                className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition ${
+                  currentView === 'home' && activeNavSection === 'about'
+                    ? 'text-blue-700 bg-blue-50/90 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-blue-600 hover:bg-slate-100/70'
+                }`}
               >
                 About
               </button>
@@ -280,11 +656,17 @@ export default function App() {
           <div className="md:hidden border-t border-slate-200 bg-white px-4 pt-3 pb-6 space-y-2 shadow-xl animate-fadeIn">
             <button
               onClick={() => {
-                setCurrentView('home')
+                if (currentView !== 'home') {
+                  setCurrentView('home')
+                }
                 setMobileMenuOpen(false)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+                currentView === 'home' && activeNavSection === 'home'
+                  ? 'bg-blue-50 text-blue-700 font-bold'
+                  : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
             >
               Home
             </button>
@@ -294,19 +676,31 @@ export default function App() {
                 setMobileMenuOpen(false)
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+                currentView === 'analysis'
+                  ? 'bg-blue-50 text-blue-700 font-bold'
+                  : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
             >
               Medication Analysis
             </button>
             <button
               onClick={() => scrollToSection('how-it-works')}
-              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+                currentView === 'home' && activeNavSection === 'how-it-works'
+                  ? 'bg-blue-50 text-blue-700 font-bold'
+                  : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
             >
               How It Works
             </button>
             <button
               onClick={() => scrollToSection('about')}
-              className="w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+              className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold transition ${
+                currentView === 'home' && activeNavSection === 'about'
+                  ? 'bg-blue-50 text-blue-700 font-bold'
+                  : 'text-slate-700 hover:bg-blue-50 hover:text-blue-700'
+              }`}
             >
               About
             </button>
@@ -328,9 +722,9 @@ export default function App() {
 
       {/* Main Content Area */}
       {currentView === 'home' ? (
-        <div className="flex-1 flex flex-col bg-[#EFF6FF]">
+        <div ref={homeContainerRef} className="flex-1 flex flex-col bg-[#EFF6FF]">
           {/* Hero Section */}
-          <section className="relative overflow-hidden bg-gradient-to-b from-[#DBEAFE] via-[#E8F2FE] to-[#EFF6FF] pt-12 pb-20 md:pt-20 md:pb-28">
+          <section id="hero-section" className="relative overflow-hidden bg-gradient-to-b from-[#DBEAFE] via-[#E8F2FE] to-[#EFF6FF] pt-12 pb-20 md:pt-20 md:pb-28">
             {/* Animated Futuristic Medical Grid Background */}
             <MedicalGridBackground />
 
@@ -339,26 +733,26 @@ export default function App() {
                 
                 {/* Left Hero Text Column */}
                 <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
-                  <div className="inline-flex items-center space-x-2 bg-blue-50/90 border border-blue-200/90 px-3.5 py-1.5 rounded-full text-xs font-bold text-blue-700 shadow-2xs animate-hero-fade-up">
+                  <div className="hero-badge inline-flex items-center space-x-2 bg-blue-50/90 border border-blue-200/90 px-3.5 py-1.5 rounded-full text-xs font-bold text-blue-700 shadow-2xs">
                     <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
                     <span>Next-Gen Healthcare AI for Clinical Safety</span>
                   </div>
 
-                  <h1 className="text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12] animate-hero-fade-up-delay-1">
+                  <h1 className="hero-heading text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 leading-[1.12]">
                     Smarter Medication <br className="hidden sm:inline" />
                     <span className="animated-gradient-text font-black">
                       Safety with AI
                     </span>
                   </h1>
 
-                  <p className="text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal animate-hero-fade-up-delay-2">
-                    PolySafe AI protects multimorbid and elderly patients against dangerous drug-drug interactions,
+                  <p className="hero-desc text-base sm:text-lg text-slate-600 max-w-2xl mx-auto lg:mx-0 leading-relaxed font-normal">
+                    MedSafe AI protects multimorbid and elderly patients against dangerous drug-drug interactions,
                     prescribing cascades, and unnecessary polypharmacy. Integrated with the Government of Odisha Niramaya
                     Essential Formulary and clinical STOPP/START guidelines.
                   </p>
 
                   {/* Hero Action Buttons */}
-                  <div className="pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 animate-hero-fade-up-delay-3">
+                  <div className="hero-buttons pt-2 flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4">
                     <button
                       onClick={() => {
                         setCurrentView('analysis')
@@ -382,7 +776,7 @@ export default function App() {
                   </div>
 
                   {/* Trust Metrics with Animated Counting & Verified Labels */}
-                  <div className="pt-6 border-t border-slate-200/80 grid grid-cols-3 gap-4 text-center lg:text-left animate-hero-fade-up-delay-3">
+                  <div className="hero-metrics pt-6 border-t border-slate-200/80 grid grid-cols-3 gap-4 text-center lg:text-left">
                     <div>
                       <div className="text-2xl font-extrabold text-blue-700">
                         <AnimatedCounter end={10000} suffix="+" />
@@ -406,78 +800,80 @@ export default function App() {
                 </div>
 
                 {/* Right Hero Interactive Card Preview */}
-                <div className="lg:col-span-5 relative floating-hero-card">
-                  {/* Subtle Electric-Blue Ambient Glow behind the medication interaction card */}
-                  <div className="absolute -inset-3 bg-gradient-to-tr from-[#0066FF]/25 via-[#008CFF]/28 to-[#00D4FF]/22 rounded-3xl blur-2xl pointer-events-none -z-10" />
+                <div className="lg:col-span-5 relative hero-preview-card">
+                  <div className="floating-hero-card">
+                    {/* Subtle Electric-Blue Ambient Glow behind the medication interaction card */}
+                    <div className="absolute -inset-3 bg-gradient-to-tr from-[#0066FF]/25 via-[#008CFF]/28 to-[#00D4FF]/22 rounded-3xl blur-2xl pointer-events-none -z-10" />
 
-                  <div className="bg-white/95 backdrop-blur-xs rounded-3xl p-6 sm:p-7 shadow-xl shadow-blue-500/10 border border-slate-200 card-glow-pulse relative overflow-hidden">
-                    <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                      <div className="flex items-center space-x-2.5">
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
-                        </span>
-                        <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
-                          Live Interaction Monitor
+                    <div className="bg-white/95 backdrop-blur-xs rounded-3xl p-6 sm:p-7 shadow-xl shadow-blue-500/10 border border-slate-200 card-glow-pulse relative overflow-hidden">
+                      <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                        <div className="flex items-center space-x-2.5">
+                          <span className="relative flex h-2.5 w-2.5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-teal-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-teal-500"></span>
+                          </span>
+                          <span className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                            Live Interaction Monitor
+                          </span>
+                        </div>
+                        <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                          Critical Hazard Flagged
                         </span>
                       </div>
-                      <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
-                        Critical Hazard Flagged
-                      </span>
-                    </div>
 
-                    {/* Sample Case Summary in Hero */}
-                    <div className="my-5 p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-slate-900">Patient Case #8841 (68y)</span>
-                        <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-800 font-bold">
-                          SCB Medical College
-                        </span>
+                      {/* Sample Case Summary in Hero */}
+                      <div className="my-5 p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-sm text-slate-900">Patient Case #8841 (68y)</span>
+                          <span className="text-[11px] font-mono bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-800 font-bold">
+                            SCB Medical College
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600">
+                          7 active medications • CKD Stage 3 • Hypertension • Osteoarthritis
+                        </p>
+                        <div className="flex items-center justify-between pt-1 border-t border-blue-200/50">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+                            Simulated Demonstration Case
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-medium">De-identified Record</span>
+                        </div>
                       </div>
-                      <p className="text-xs text-slate-600">
-                        7 active medications • CKD Stage 3 • Hypertension • Osteoarthritis
+
+                      {/* Detected Hazard Box */}
+                      <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200/90 space-y-2">
+                        <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs">
+                          <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span>"Triple Whammy" Acute Renal Alert</span>
+                        </div>
+                        <p className="text-xs text-rose-900/90 leading-relaxed">
+                          Telmisartan (ARB) + Furosemide (Diuretic) + Diclofenac (NSAID) impairs renal hemodynamics, risking acute kidney failure.
+                        </p>
+                        <div className="text-[11px] font-bold text-teal-700 bg-white/80 p-2 rounded-xl border border-teal-200">
+                          💡 AI Action: Discontinue Diclofenac. Substitute with Paracetamol 500mg.
+                        </div>
+                      </div>
+
+                      {/* Demonstration Disclaimer Note */}
+                      <p className="mt-3 text-[10px] text-slate-400 text-center italic">
+                        * Clinical scenarios, dosages, and recommendations are simulated demonstration data for testing.
                       </p>
-                      <div className="flex items-center justify-between pt-1 border-t border-blue-200/50">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
-                          Simulated Demonstration Case
-                        </span>
-                        <span className="text-[10px] text-slate-400 font-medium">De-identified Record</span>
-                      </div>
-                    </div>
 
-                    {/* Detected Hazard Box */}
-                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200/90 space-y-2">
-                      <div className="flex items-center space-x-2 text-rose-700 font-bold text-xs">
-                        <svg className="w-4 h-4 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                        </svg>
-                        <span>"Triple Whammy" Acute Renal Alert</span>
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                        <span className="text-xs text-slate-500 font-medium">Ready to test other patient profiles?</span>
+                        <button
+                          onClick={() => {
+                            setCurrentView('analysis')
+                            window.scrollTo({ top: 0, behavior: 'smooth' })
+                          }}
+                          className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline flex items-center space-x-1"
+                        >
+                          <span>Launch Full Audit</span>
+                          <span>→</span>
+                        </button>
                       </div>
-                      <p className="text-xs text-rose-900/90 leading-relaxed">
-                        Telmisartan (ARB) + Furosemide (Diuretic) + Diclofenac (NSAID) impairs renal hemodynamics, risking acute kidney failure.
-                      </p>
-                      <div className="text-[11px] font-bold text-teal-700 bg-white/80 p-2 rounded-xl border border-teal-200">
-                        💡 AI Action: Discontinue Diclofenac. Substitute with Paracetamol 500mg.
-                      </div>
-                    </div>
-
-                    {/* Demonstration Disclaimer Note */}
-                    <p className="mt-3 text-[10px] text-slate-400 text-center italic">
-                      * Clinical scenarios, dosages, and recommendations are simulated demonstration data for testing.
-                    </p>
-
-                    <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                      <span className="text-xs text-slate-500 font-medium">Ready to test other patient profiles?</span>
-                      <button
-                        onClick={() => {
-                          setCurrentView('analysis')
-                          window.scrollTo({ top: 0, behavior: 'smooth' })
-                        }}
-                        className="text-xs font-bold text-blue-700 hover:text-blue-800 hover:underline flex items-center space-x-1"
-                      >
-                        <span>Launch Full Audit</span>
-                        <span>→</span>
-                      </button>
                     </div>
                   </div>
                 </div>
@@ -495,7 +891,7 @@ export default function App() {
           </section>
 
           {/* Feature Cards Section */}
-          <section className="relative py-24 overflow-hidden bg-gradient-to-b from-[#EFF6FF] via-[#E1F0FE] to-[#EFF6FF]">
+          <section id="features-section" className="relative py-24 overflow-hidden bg-gradient-to-b from-[#EFF6FF] via-[#E1F0FE] to-[#EFF6FF]">
             {/* Seamless Gradient Blend at Top of Feature Cards Section */}
             <div 
               className="absolute inset-x-0 top-0 h-44 pointer-events-none z-10"
@@ -549,7 +945,7 @@ export default function App() {
             <div className="absolute top-[80%] left-[25%] w-1.5 h-1.5 rounded-full bg-white shadow-[0_0_6px_#00D4FF] animate-particle-3" />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+              <div className="features-header text-center max-w-3xl mx-auto mb-16 space-y-3">
                 <span className="text-xs font-bold tracking-wider uppercase text-teal-700 bg-teal-50/90 border border-teal-200/90 px-3.5 py-1 rounded-full shadow-2xs">
                   Clinical Capabilities
                 </span>
@@ -562,9 +958,9 @@ export default function App() {
               </div>
 
               {/* 3 Core Feature Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="feature-card-grid grid grid-cols-1 md:grid-cols-3 gap-8">
                 {/* Feature Card 1: Drug Interaction Checking */}
-                <div className="group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-[#00D4FF] hover:shadow-2xl hover:shadow-[#008CFF]/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                <div className="feature-card group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-[#00D4FF] hover:shadow-2xl hover:shadow-[#008CFF]/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#00D4FF] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="space-y-4">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-600 to-blue-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:shadow-[0_0_20px_#00D4FF] group-hover:scale-110 transition-all duration-300">
@@ -587,7 +983,7 @@ export default function App() {
                 </div>
 
                 {/* Feature Card 2: Medication Information & Niramaya Formulary */}
-                <div className="group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-teal-400 hover:shadow-2xl hover:shadow-teal-500/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                <div className="feature-card group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-teal-400 hover:shadow-2xl hover:shadow-teal-500/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-teal-400 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="space-y-4">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-teal-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-teal-500/25 group-hover:shadow-[0_0_20px_#14B8A6] group-hover:scale-110 transition-all duration-300">
@@ -610,7 +1006,7 @@ export default function App() {
                 </div>
 
                 {/* Feature Card 3: AI-Powered Clinical Analysis */}
-                <div className="group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-[#00D4FF] hover:shadow-2xl hover:shadow-[#008CFF]/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
+                <div className="feature-card group rounded-3xl bg-white/95 backdrop-blur-md border border-blue-200/90 p-8 hover:bg-white hover:border-[#00D4FF] hover:shadow-2xl hover:shadow-[#008CFF]/25 hover:-translate-y-2 transition-all duration-300 flex flex-col justify-between relative overflow-hidden">
                   <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#00D4FF] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="space-y-4">
                     <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-blue-700 via-indigo-600 to-teal-500 flex items-center justify-center text-white shadow-md shadow-blue-500/25 group-hover:shadow-[0_0_20px_#00D4FF] group-hover:scale-110 transition-all duration-300">
@@ -668,21 +1064,21 @@ export default function App() {
             </div>
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-              <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
+              <div className="how-it-works-header text-center max-w-3xl mx-auto mb-16 space-y-3">
                 <span className="text-xs font-bold tracking-wider uppercase text-blue-700 bg-blue-50 border border-blue-200 px-3.5 py-1 rounded-full shadow-2xs">
                   Workflow Architecture
                 </span>
                 <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                  How PolySafe AI Works
+                  How MedSafe AI Works
                 </h2>
                 <p className="text-slate-600 text-sm sm:text-base">
                   Three simple steps from prescription entry to clinical safety validation.
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+              <div className="how-it-works-grid grid grid-cols-1 md:grid-cols-3 gap-8 relative">
                 {/* Step 1 */}
-                <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-[#00D4FF] shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-[#008CFF]/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
+                <div className="how-it-works-card bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-[#00D4FF] shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-[#008CFF]/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-4xl font-black text-blue-200">01</span>
                     <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200">
@@ -699,7 +1095,7 @@ export default function App() {
                 </div>
 
                 {/* Step 2 */}
-                <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-teal-400 shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-teal-500/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
+                <div className="how-it-works-card bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-teal-400 shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-teal-500/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-4xl font-black text-teal-200">02</span>
                     <span className="w-10 h-10 rounded-xl bg-teal-50 text-teal-700 font-bold flex items-center justify-center text-sm border border-teal-200">
@@ -716,7 +1112,7 @@ export default function App() {
                 </div>
 
                 {/* Step 3 */}
-                <div className="bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-[#00D4FF] shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-[#008CFF]/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
+                <div className="how-it-works-card bg-white/95 backdrop-blur-md rounded-3xl p-8 border border-blue-200/90 hover:border-[#00D4FF] shadow-lg shadow-blue-500/5 hover:shadow-xl hover:shadow-[#008CFF]/15 hover:-translate-y-1.5 transition-all duration-300 relative space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-4xl font-black text-blue-200">03</span>
                     <span className="w-10 h-10 rounded-xl bg-blue-50 text-blue-700 font-bold flex items-center justify-center text-sm border border-blue-200">
@@ -734,24 +1130,95 @@ export default function App() {
               </div>
 
               {/* Central CTA Banner */}
-              <div className="mt-14 rounded-3xl bg-gradient-to-r from-blue-700 via-blue-800 to-teal-700 p-8 sm:p-12 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
-                <div>
-                  <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-                    Ready to audit a multi-drug prescription?
-                  </h3>
-                  <p className="text-blue-100 text-sm mt-1 max-w-xl">
-                    Try our interactive live analysis demo with pre-loaded patient cases from Cuttack, Puri, and Berhampur.
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setCurrentView('analysis')
-                    window.scrollTo({ top: 0, behavior: 'smooth' })
+              <div className="how-it-works-cta mt-14">
+                <div 
+                  className="group cta-interactive-card p-8 sm:p-12 text-white relative rounded-3xl"
+                  onMouseMove={(e) => {
+                    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches) return
+                    const rect = e.currentTarget.getBoundingClientRect()
+                    setCtaMousePos({
+                      x: e.clientX - rect.left,
+                      y: e.clientY - rect.top,
+                      isHovered: true,
+                    })
                   }}
-                  className="shrink-0 px-8 py-3.5 rounded-xl bg-white text-blue-800 font-bold text-sm hover:bg-blue-50 shadow-md active:scale-98 transition"
+                  onMouseLeave={() => {
+                    setCtaMousePos((prev) => ({ ...prev, isHovered: false }))
+                  }}
                 >
-                  Launch Analysis Tool
-                </button>
+                  {/* Subtle Mouse-Following Radial Glow (Behind content, z-0) */}
+                  <div
+                    className="pointer-events-none absolute inset-0 rounded-3xl overflow-hidden transition-opacity duration-300 z-0 select-none"
+                    style={{ opacity: ctaMousePos.isHovered ? 1 : 0 }}
+                    aria-hidden="true"
+                  >
+                    <div
+                      className="absolute w-[380px] h-[380px] -translate-x-1/2 -translate-y-1/2 rounded-full blur-2xl pointer-events-none"
+                      style={{
+                        left: `${ctaMousePos.x}px`,
+                        top: `${ctaMousePos.y}px`,
+                        background: 'radial-gradient(circle, rgba(0, 212, 255, 0.32) 0%, rgba(0, 102, 255, 0.2) 48%, transparent 72%)',
+                      }}
+                    />
+                  </div>
+
+                  {/* Animated Glowing Border Light Sweep */}
+                  <svg 
+                    className="absolute inset-0 w-full h-full pointer-events-none rounded-3xl z-10 overflow-hidden" 
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="1"
+                      y="1"
+                      width="99.6%"
+                      height="99%"
+                      rx="24"
+                      ry="24"
+                      fill="none"
+                      stroke="url(#ctaBorderBeam)"
+                      strokeWidth="2.5"
+                      pathLength="100"
+                      className="cta-border-beam"
+                    />
+                    <defs>
+                      <linearGradient id="ctaBorderBeam" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#00D4FF" />
+                        <stop offset="50%" stopColor="#0066FF" />
+                        <stop offset="100%" stopColor="#00D4FF" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+
+                  {/* Card Content & Action Button (z-20) */}
+                  <div className="relative z-20 flex flex-col md:flex-row items-center justify-between gap-6">
+                    <div>
+                      <h3 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+                        Ready to audit a multi-drug prescription?
+                      </h3>
+                      <p className="text-blue-100 text-sm mt-1 max-w-xl">
+                        Try our interactive live analysis demo with pre-loaded patient cases from Cuttack, Puri, and Berhampur.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setCurrentView('analysis')
+                        window.scrollTo({ top: 0, behavior: 'smooth' })
+                      }}
+                      className="cta-launch-btn shrink-0 px-8 py-3.5 rounded-xl bg-white text-blue-800 font-bold text-sm shadow-md active:scale-98 transition flex items-center justify-center space-x-2 group/btn border border-white/80"
+                    >
+                      <span>Launch Analysis Tool</span>
+                      <svg 
+                        className="w-4 h-4 text-blue-700 transition-transform duration-250 ease-out group-hover/btn:translate-x-1" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </section>
@@ -782,9 +1249,9 @@ export default function App() {
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-                <div className="space-y-5">
+                <div className="about-text space-y-5">
                   <span className="text-xs font-bold tracking-wider uppercase text-teal-600 bg-teal-50 border border-teal-200 px-3 py-1 rounded-full">
-                    About PolySafe AI
+                    About MedSafe AI
                   </span>
                   <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
                     Dedicated to Reducing Polypharmacy Risks Across Odisha
@@ -795,7 +1262,7 @@ export default function App() {
                     acute renal injury, and adverse falls are leading causes of emergency hospitalization.
                   </p>
                   <p className="text-slate-600 text-sm sm:text-base leading-relaxed">
-                    PolySafe AI bridges this critical gap by empowering frontline doctors, pharmacists, and health workers with
+                    MedSafe AI bridges this critical gap by empowering frontline doctors, pharmacists, and health workers with
                     real-time intelligence, seamless Niramaya formulary matching, and automated deprescribing assistance.
                   </p>
                   <div className="pt-2 flex flex-wrap gap-2 text-xs font-semibold text-slate-700">
@@ -805,7 +1272,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <div className="bg-gradient-to-br from-blue-50 via-teal-50/50 to-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
+                <div className="about-card bg-gradient-to-br from-blue-50 via-teal-50/50 to-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
                   <h3 className="text-lg font-bold text-slate-900">System Impact Goals</h3>
                   <div className="space-y-4">
                     <div className="flex items-start space-x-3">
@@ -851,19 +1318,19 @@ export default function App() {
         </div>
       ) : (
         /* Medication Analysis Section (Interactive Workspace) */
-        <div className="relative flex-1 min-h-[calc(100vh-80px)] overflow-hidden bg-gradient-to-b from-[#F8FBFF] via-[#F1F7FE] to-[#EFF6FF]">
+        <div ref={dashboardContainerRef} className="relative flex-1 min-h-[calc(100vh-80px)] overflow-hidden bg-gradient-to-b from-[#F8FBFF] via-[#F1F7FE] to-[#EFF6FF]">
           {/* Futuristic Electric-Blue Clinical Dashboard Background */}
           <DashboardBackground />
 
           <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-6">
           {/* Breadcrumb / Return to Home */}
-          <div className="flex items-center justify-between">
+          <div className="dash-header-bar flex items-center justify-between">
             <button
               onClick={() => {
                 setCurrentView('home')
                 window.scrollTo({ top: 0, behavior: 'smooth' })
               }}
-              className="group inline-flex items-center space-x-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-white border border-slate-200 hover:border-blue-300 px-3.5 py-1.5 rounded-xl shadow-2xs hover:shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="group inline-flex items-center space-x-1.5 text-xs font-bold text-blue-700 hover:text-blue-800 bg-white border border-slate-200 hover:border-blue-300 px-3.5 py-1.5 rounded-xl shadow-2xs hover:shadow-sm hover:shadow-blue-500/10 hover:scale-[1.02] active:scale-98 transition-all duration-200 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
             >
               <span className="group-hover:-translate-x-0.5 transition-transform duration-200 inline-block">←</span>
               <span>Back to Homepage</span>
@@ -874,7 +1341,7 @@ export default function App() {
           </div>
 
           {/* Patient Selector Strip */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="dash-patient-selector bg-white border border-slate-200 rounded-3xl p-5 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 w-full md:w-auto">
               <label className="text-xs font-extrabold uppercase tracking-wider text-slate-500">
                 Active Clinical Case:
@@ -884,7 +1351,7 @@ export default function App() {
                   <button
                     key={p.id}
                     onClick={() => setSelectedPatientId(p.id)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ease-out hover:scale-[1.02] active:scale-98 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 ${
+                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ease-out hover:scale-[1.02] active:scale-98 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1 ${
                       selectedPatientId === p.id
                         ? 'bg-blue-600 text-white shadow-md shadow-blue-500/25 border border-blue-500'
                         : 'bg-slate-100 text-slate-700 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 border border-transparent shadow-2xs hover:shadow-sm'
@@ -909,7 +1376,7 @@ export default function App() {
           {/* Quick Metrics Bar (Summary Cards with 4-6px elevation & electric-blue border glow) */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Metric 1 */}
-            <div className={`rounded-2xl p-5 border ${polyStatus.bgColor} shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default`}>
+            <div className={`dashboard-summary-card rounded-2xl p-5 border ${polyStatus.bgColor} shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default`}>
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Total Medications</span>
                 <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-white text-slate-800 border border-slate-200">
@@ -928,7 +1395,7 @@ export default function App() {
             </div>
 
             {/* Metric 2 */}
-            <div className="rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
+            <div className="dashboard-summary-card rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Clinical Alerts</span>
                 <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
@@ -946,7 +1413,7 @@ export default function App() {
             </div>
 
             {/* Metric 3 */}
-            <div className="rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
+            <div className="dashboard-summary-card rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Niramaya Formulary</span>
                 <span className="text-xs font-extrabold px-2 py-0.5 rounded-full bg-teal-50 text-teal-700 border border-teal-200">
@@ -960,7 +1427,7 @@ export default function App() {
             </div>
 
             {/* Metric 4 */}
-            <div className="rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
+            <div className="dashboard-summary-card rounded-2xl p-5 border border-slate-200 bg-white shadow-2xs flex flex-col justify-between hover:-translate-y-1.5 hover:shadow-lg hover:shadow-blue-500/15 hover:border-[#0066FF] transition-all duration-300 ease-out cursor-default">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Hospital Center</span>
                 <span className="text-xs font-mono bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-bold">
@@ -979,39 +1446,41 @@ export default function App() {
           </div>
 
           {/* Analysis View Tabs */}
-          <div className="border-b border-slate-200 flex space-x-2 sm:space-x-6 overflow-x-auto pb-1">
+          <div className="dash-tab-nav border-b border-slate-200 flex space-x-2 sm:space-x-8 overflow-x-auto">
             <button
               onClick={() => setActiveAnalysisTab('reconciliation')}
-              className={`pb-3 text-sm font-bold transition-all duration-200 ease-out border-b-2 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-lg px-2 ${
+              className={`pb-3.5 px-3 text-sm font-bold transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
                 activeAnalysisTab === 'reconciliation'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-slate-500 hover:text-blue-600'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-blue-600 hover:border-slate-300'
               }`}
             >
-              📋 Prescription & Drug Interactions ({medCount})
+              <span>📋 Prescription & Drug Interactions ({medCount})</span>
             </button>
             <button
               onClick={() => setActiveAnalysisTab('ai-summary')}
-              className={`pb-3 text-sm font-bold transition-all duration-200 ease-out border-b-2 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-lg px-2 ${
+              className={`pb-3.5 px-3 text-sm font-bold transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
                 activeAnalysisTab === 'ai-summary'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-slate-500 hover:text-blue-600'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-blue-600 hover:border-slate-300'
               }`}
             >
-              🤖 AI Deprescribing Recommendations
+              <span>🤖 AI Deprescribing Recommendations</span>
             </button>
             <button
               onClick={() => setActiveAnalysisTab('niramaya')}
-              className={`pb-3 text-sm font-bold transition-all duration-200 ease-out border-b-2 hover:scale-[1.01] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-t-lg px-2 ${
+              className={`pb-3.5 px-3 text-sm font-bold transition-colors duration-150 border-b-2 focus:outline-none -mb-px flex items-center space-x-1.5 ${
                 activeAnalysisTab === 'niramaya'
-                  ? 'border-blue-600 text-blue-700'
-                  : 'border-transparent text-slate-500 hover:text-blue-600'
+                  ? 'border-blue-600 text-blue-700 font-extrabold'
+                  : 'border-transparent text-slate-500 hover:text-blue-600 hover:border-slate-300'
               }`}
             >
-              🏥 Niramaya Essential Drug Formulary
+              <span>🏥 Niramaya Essential Drug Formulary</span>
             </button>
           </div>
 
+          {/* Tab Content Wrapper */}
+          <div className="dash-content-area space-y-6">
           {/* Tab 1: Reconciliation & Interactions */}
           {activeAnalysisTab === 'reconciliation' && (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -1240,6 +1709,7 @@ export default function App() {
             </div>
           )}
           </div>
+          </div>
         </div>
       )}
 
@@ -1254,7 +1724,7 @@ export default function App() {
                   +
                 </div>
                 <span className="text-xl font-black text-white tracking-tight">
-                  PolySafe<span className="text-teal-400">AI</span>
+                  MedSafe<span className="text-teal-400">AI</span>
                 </span>
               </div>
               <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
@@ -1330,7 +1800,7 @@ export default function App() {
           </div>
 
           <div className="pt-8 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs">
-            <p>© 2026 PolySafe AI • Built for Odisha Healthcare Hackathon • All rights reserved.</p>
+            <p>© 2026 MedSafe AI • Built for Odisha Healthcare Hackathon • All rights reserved.</p>
             <p className="text-slate-500 text-[11px]">
               Disclaimer: Clinical decision support tool for healthcare professionals and research.
             </p>
